@@ -82,6 +82,25 @@ export async function saveFileToDisk(
 const isZip = (name: string) => name.toLowerCase().endsWith('.zip');
 const isKey = (name: string) => name.toLowerCase().endsWith('.key');
 
+// Sizes to try when decoding an image. Rendered PNGs decode at the first (their
+// natural size is already below the cap); photos of printed pages need to be
+// downscaled from multiple megapixels before jsQR can locate the QR.
+const DECODE_MAX_SIDES = [1400, 1000, 1800];
+
+/** Decode one image's bytes to a payload, trying a few downscales. */
+async function decodeImageBytes(bytes: Uint8Array): Promise<Uint8Array | null> {
+  const codec = getCodec(CODEC_QR_GRID);
+  const blob = new Blob([bytes as BufferSource]);
+  for (const maxSide of DECODE_MAX_SIDES) {
+    try {
+      return codec.decode(await fileToImageData(blob, maxSide));
+    } catch {
+      // Try the next scale.
+    }
+  }
+  return null;
+}
+
 /**
  * Reconstruct the original file from image files, a .zip of them, or a mix.
  * A `.key` file (loose or inside the zip) is used when present.
@@ -108,14 +127,11 @@ export async function restoreFileFromDisk(
     }
   }
 
-  const codec = getCodec(CODEC_QR_GRID);
   const payloads: Uint8Array[] = [];
   for (const bytes of images) {
-    try {
-      payloads.push(codec.decode(await fileToImageData(new Blob([bytes as BufferSource]))));
-    } catch {
-      // A single unreadable image is fine — erasure coding tolerates losses.
-    }
+    const payload = await decodeImageBytes(bytes);
+    // A single unreadable image is fine — erasure coding tolerates losses.
+    if (payload) payloads.push(payload);
   }
   if (payloads.length === 0) throw new Error('restore: no readable images found');
 

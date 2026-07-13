@@ -48,7 +48,7 @@ separate and additional.
   | ------- | --------- | ---------------------- |
   | Disk    | `L`       | 2800                   |
   | Cloud   | `Q`       | 1600                   |
-  | Paper   | `H`       | 1100                   |
+  | Paper   | `H`       | 800                    |
 
 - **Quiet zone:** 4 modules.
 - **Rendering:** dark modules are painted black (luminance 0), light modules white
@@ -244,7 +244,7 @@ If fewer than `k` shards survive, reconstruction is impossible.
 | KDF defaults     | iterations 3, memory 64 MiB, parallelism 1        |
 | GF polynomial    | `0x11D`, generator `0x02`                         |
 | Parity           | `m = max(ceil(k·0.3), 2)`                          |
-| Data per shard   | `capacity(profile) − 33` (Disk 2767, Cloud 1567, Paper 1067) |
+| Data per shard   | `capacity(profile) − 33` (Disk 2767, Cloud 1567, Paper 767) |
 | Limits           | file ≤ 256 KiB, images ≤ 150                       |
 | Compression      | gzip (RFC 1952), opportunistic                    |
 

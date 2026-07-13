@@ -63,15 +63,29 @@ export async function imageWithLabelToPngBlob(
   return canvas.convertToBlob({ type: 'image/png' });
 }
 
-/** Decode an image file (PNG/JPEG/…) into pixels for the codec to read. */
-export async function fileToImageData(file: Blob): Promise<ImageDataLike> {
+/**
+ * Decode an image file (PNG/JPEG/…) into pixels for the codec to read,
+ * optionally downscaling so the longer side is at most `maxSide`.
+ *
+ * Downscaling matters for photos of printed pages: the QR decoder fails on
+ * full-resolution phone photos (~9 MP) but succeeds once the image is reduced
+ * to ~1000–1400 px. Rendered PNGs are already small, so the cap is a no-op for
+ * them (it never upscales).
+ */
+export async function fileToImageData(
+  file: Blob,
+  maxSide: number = Infinity,
+): Promise<ImageDataLike> {
   const bitmap = await createImageBitmap(file);
   try {
-    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = new OffscreenCanvas(w, h);
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('image-io: 2D canvas context unavailable');
-    ctx.drawImage(bitmap, 0, 0);
-    const data = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h);
     return { data: data.data, width: data.width, height: data.height };
   } finally {
     bitmap.close();

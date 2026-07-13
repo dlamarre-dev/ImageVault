@@ -34,7 +34,9 @@ function profileSettings(profile: number): {
 } {
   switch (profile) {
     case PROFILE_PAPER:
-      return { ecc: 'H', moduleScale: 8, maxPayload: 1100 };
+      // Lower density than disk: fewer modules per QR (a lower version) means
+      // larger printed modules, which survive a phone photo far better.
+      return { ecc: 'H', moduleScale: 8, maxPayload: 800 };
     case PROFILE_CLOUD:
       return { ecc: 'Q', moduleScale: 8, maxPayload: 1600 };
     default: // PROFILE_DISK
