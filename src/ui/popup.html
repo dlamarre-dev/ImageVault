@@ -49,6 +49,11 @@
             ><input type="radio" name="dest" value="paper" />
             <span data-i18n="destPaper"></span
           ></label>
+          <label id="dest-cloud-label" class="radio" hidden
+            ><input type="radio" name="dest" value="cloud" />
+            <span data-i18n="destCloud"></span
+          ></label>
+          <p id="cloud-note" class="muted" data-i18n="cloudNote" hidden></p>
         </fieldset>
 
         <fieldset>
@@ -106,6 +111,7 @@
         <label data-i18n="labelPassword" for="restore-pw"></label>
         <input id="restore-pw" type="password" autocomplete="current-password" />
         <button id="restore-btn" data-i18n="btnRestore"></button>
+        <button id="restore-photos-btn" data-i18n="btnRestorePhotos" hidden></button>
         <p id="restore-status" class="status" role="status"></p>
       </section>
 

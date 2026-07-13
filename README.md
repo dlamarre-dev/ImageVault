@@ -59,9 +59,11 @@ browser closes), and image sets can be saved and restored as a single **.zip**. 
 **Paper** destination generates a printable PDF (one high-ECC QR per page, with a
 readable header and an optional instruction sheet) that restores from scans or photos.
 A standalone **[Python reference decoder](python/README.md)** restores a vault without the
-extension and runs in CI as a cross-implementation conformance test. The on-image format
-is frozen in [SPEC.md](SPEC.md). The Google Photos destination, the stego key mode, and
-full localization come in later phases.
+extension and runs in CI as a cross-implementation conformance test. An **optional Google
+Photos** destination (upload to a dedicated album, restore via the Picker API, Cloud
+profile) is available when a Google OAuth client id is configured in a local `.env` (see
+`.env.example`); it is a convenience, never the only copy. The on-image format is frozen
+in [SPEC.md](SPEC.md). The stego key mode and full localization come in later phases.
 
 ## Development
 

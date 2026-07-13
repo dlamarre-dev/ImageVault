@@ -5,7 +5,7 @@
  * degrade the encoded bytes.
  */
 
-import type { ImageDataLike } from '@core';
+import { CODEC_QR_GRID, getCodec, type ImageDataLike } from '@core';
 
 /** Optional human-readable label band drawn above the QR (cleartext — plan §1). */
 export interface LabelBand {
@@ -90,6 +90,28 @@ export async function fileToImageData(
   } finally {
     bitmap.close();
   }
+}
+
+// Sizes to try when decoding an image. Rendered PNGs decode at the first (their
+// natural size is already below the cap); photos of printed pages need to be
+// downscaled from multiple megapixels before the QR decoder can locate the code.
+const DECODE_MAX_SIDES = [1400, 1000, 1800];
+
+/**
+ * Decode one image's bytes to a codec payload, trying a few downscales. Returns
+ * null when no QR is readable (a lost image is tolerated by erasure coding).
+ */
+export async function decodeImageBytes(bytes: Uint8Array): Promise<Uint8Array | null> {
+  const codec = getCodec(CODEC_QR_GRID);
+  const blob = new Blob([bytes as BufferSource]);
+  for (const maxSide of DECODE_MAX_SIDES) {
+    try {
+      return codec.decode(await fileToImageData(blob, maxSide));
+    } catch {
+      // Try the next scale.
+    }
+  }
+  return null;
 }
 
 /** Trigger a browser download for a blob. */

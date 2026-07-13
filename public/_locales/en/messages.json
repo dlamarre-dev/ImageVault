@@ -40,6 +40,27 @@
   "destHeading": { "message": "Destination", "description": "Popup: destination selector heading." },
   "destDisk": { "message": "Disk (PNG or .zip)", "description": "Popup: disk destination." },
   "destPaper": { "message": "Paper (printable PDF)", "description": "Popup: paper destination." },
+  "destCloud": {
+    "message": "Google Photos (optional)",
+    "description": "Popup: Google Photos destination."
+  },
+  "cloudNote": {
+    "message": "A convenience, never your only copy. Uploaded to a dedicated album.",
+    "description": "Popup: note under the Google Photos option."
+  },
+  "statusSavedCloud": {
+    "message": "Uploaded $COUNT$ image(s) to the album “$ALBUM$”. Keep your password safe.",
+    "description": "Popup: status after uploading to Google Photos.",
+    "placeholders": { "count": { "content": "$1" }, "album": { "content": "$2" } }
+  },
+  "btnRestorePhotos": {
+    "message": "Restore from Google Photos",
+    "description": "Popup: button to restore via the Photos picker."
+  },
+  "statusPickerOpen": {
+    "message": "Pick your ImageVault images in the window that opened, then come back…",
+    "description": "Popup: status while the picker is open."
+  },
   "labelInstructions": {
     "message": "Include an instruction sheet",
     "description": "Popup: paper option to add the instruction page."

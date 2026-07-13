@@ -1,11 +1,13 @@
 import browser from 'webextension-polyfill';
-import { estimateImages, PROFILE_DISK, PROFILE_PAPER, type KeyMode } from '@core';
+import { estimateImages, PROFILE_CLOUD, PROFILE_DISK, PROFILE_PAPER, type KeyMode } from '@core';
 import { localizeDom } from './i18n';
 import { el, friendlyError, msg, setStatus, show } from './dom';
 import { getSession, isKeySet, lock, unlock } from './keystore';
 import { type Destination, getPrefs, savePrefs } from './prefs';
 import { restoreFileFromDisk, saveFileToDisk } from './disk';
 import { saveFileToPaper } from './paper';
+import { HAS_GOOGLE_PHOTOS } from './config';
+import { restoreFromPhotos, saveToPhotos } from './google-photos';
 
 localizeDom();
 
@@ -37,6 +39,7 @@ const restoreFiles = el<HTMLInputElement>('restore-files');
 const restoreKey = el<HTMLInputElement>('restore-key');
 const restorePw = el<HTMLInputElement>('restore-pw');
 const restoreBtn = el<HTMLButtonElement>('restore-btn');
+const restorePhotosBtn = el<HTMLButtonElement>('restore-photos-btn');
 const restoreStatus = el('restore-status');
 
 function pick<T extends string>(name: string, fallback: T): T {
@@ -53,18 +56,28 @@ function setRadio(name: string, value: string): void {
 
 /** Show the option controls that match the chosen destination. */
 function reflectDestination(): void {
-  const paper = selectedDest() === 'paper';
-  show(zipField, !paper);
+  const dest = selectedDest();
+  const paper = dest === 'paper';
+  const cloud = dest === 'cloud';
+  show(zipField, dest === 'disk');
   show(paperFields, paper);
-  // The "add readable label" toggle is disk-only; paper pages always have a
-  // header, so the title field is always available there.
-  show(addBandLabel, !paper);
-  show(bandFields, paper || addBand.checked);
+  // The "add readable label" toggle is disk-only; paper pages and cloud albums
+  // use the title directly, so the title field is always available there.
+  show(addBandLabel, dest === 'disk');
+  show(bandFields, paper || cloud || addBand.checked);
+}
+
+// Reveal the Google Photos controls only when a client id is configured.
+if (HAS_GOOGLE_PHOTOS) {
+  show(el('dest-cloud-label'), true);
+  show(el('cloud-note'), true);
+  show(restorePhotosBtn, true);
 }
 
 async function loadPrefs(): Promise<void> {
   const prefs = await getPrefs();
-  setRadio('dest', prefs.destination);
+  const destination = prefs.destination === 'cloud' && !HAS_GOOGLE_PHOTOS ? 'disk' : prefs.destination;
+  setRadio('dest', destination);
   setRadio('keymode', prefs.keyMode);
   addBand.checked = prefs.addBand;
   bandTitle.value = prefs.title;
@@ -141,7 +154,9 @@ async function updateEstimate(): Promise<void> {
   estimate.textContent = '…';
   try {
     const content = new Uint8Array(await file.arrayBuffer());
-    const profile = selectedDest() === 'paper' ? PROFILE_PAPER : PROFILE_DISK;
+    const dest = selectedDest();
+    const profile =
+      dest === 'paper' ? PROFILE_PAPER : dest === 'cloud' ? PROFILE_CLOUD : PROFILE_DISK;
     const { images } = await estimateImages(file.name, content, {
       keyMode: selectedKeyMode(),
       profile,
@@ -168,7 +183,13 @@ saveBtn.addEventListener('click', async () => {
   saveBtn.disabled = true;
   setStatus(saveStatus, msg('statusSaving'));
   try {
-    if (dest === 'paper') {
+    if (dest === 'cloud') {
+      const { imageCount, albumTitle } = await saveToPhotos(file, session, {
+        keyMode,
+        title: title || undefined,
+      });
+      setStatus(saveStatus, msg('statusSavedCloud', [String(imageCount), albumTitle]));
+    } else if (dest === 'paper') {
       const { imageCount } = await saveFileToPaper(file, session, {
         keyMode,
         title: title || undefined,
@@ -210,6 +231,24 @@ restoreBtn.addEventListener('click', async () => {
     setStatus(restoreStatus, friendlyError(err), true);
   } finally {
     restoreBtn.disabled = false;
+  }
+});
+
+restorePhotosBtn.addEventListener('click', async () => {
+  if (!restorePw.value) return setStatus(restoreStatus, msg('errNoPassword'), true);
+  restorePhotosBtn.disabled = true;
+  setStatus(restoreStatus, msg('statusPickerOpen'));
+  try {
+    const keyFile = restoreKey.files?.[0];
+    const keyBlock = keyFile ? new Uint8Array(await keyFile.arrayBuffer()) : undefined;
+    const { filename } = await restoreFromPhotos(restorePw.value, keyBlock, (url) => {
+      window.open(url, '_blank', 'noopener');
+    });
+    setStatus(restoreStatus, msg('statusRestored', filename));
+  } catch (err) {
+    setStatus(restoreStatus, friendlyError(err), true);
+  } finally {
+    restorePhotosBtn.disabled = false;
   }
 });
 

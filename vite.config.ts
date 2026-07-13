@@ -26,6 +26,10 @@ function manifestPlugin(): Plugin {
 export default defineConfig({
   root: 'src',
   publicDir: resolve(__dirname, 'public'),
+  // Load .env from the project root and expose IMAGEVAULT_* to the app (e.g. the
+  // optional Google Photos client id). Absent → the feature stays disabled.
+  envDir: resolve(__dirname),
+  envPrefix: ['VITE_', 'IMAGEVAULT_'],
   resolve: {
     alias: {
       '@core': fileURLToPath(new URL('./src/core', import.meta.url)),

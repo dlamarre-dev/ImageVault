@@ -69,6 +69,7 @@ export function buildManifest(target: Target): Record<string, unknown> {
     optional_host_permissions: [
       'https://photoslibrary.googleapis.com/*',
       'https://photospicker.googleapis.com/*',
+      'https://*.googleusercontent.com/*',
     ],
     background: {
       service_worker: 'background.js',

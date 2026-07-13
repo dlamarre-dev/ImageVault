@@ -8,7 +8,7 @@ import type { KeyMode } from '@core';
 
 const PREFS_KEY = 'imagevault.prefs';
 
-export type Destination = 'disk' | 'paper';
+export type Destination = 'disk' | 'paper' | 'cloud';
 
 export interface Prefs {
   destination: Destination;
