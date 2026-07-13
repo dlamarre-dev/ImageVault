@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ImageVault — Google Photos</title>
+    <link rel="stylesheet" href="./ui.css" />
+  </head>
+  <body>
+    <main class="panel wide">
+      <h1 data-i18n="photosHeading"></h1>
+      <p class="muted" data-i18n="photosIntro"></p>
+
+      <label data-i18n="labelKeyFile" for="photos-key"></label>
+      <input id="photos-key" type="file" accept=".key" />
+      <p class="muted" data-i18n="keyFileHint"></p>
+
+      <label data-i18n="labelPassword" for="photos-pw"></label>
+      <input id="photos-pw" type="password" autocomplete="current-password" />
+
+      <button id="photos-restore-btn" data-i18n="btnRestorePhotos"></button>
+      <p id="photos-status" class="status" role="status"></p>
+    </main>
+    <script type="module" src="./photos.ts"></script>
+  </body>
+</html>

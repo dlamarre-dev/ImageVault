@@ -57,6 +57,14 @@
     "message": "Restore from Google Photos",
     "description": "Popup: button to restore via the Photos picker."
   },
+  "photosHeading": {
+    "message": "Restore from Google Photos",
+    "description": "Photos restore page: heading."
+  },
+  "photosIntro": {
+    "message": "This runs in its own tab so it stays open while you pick your images. Enter your password, start, choose the vault's images in the picker, then return here.",
+    "description": "Photos restore page: intro."
+  },
   "statusPickerOpen": {
     "message": "Pick your ImageVault images in the window that opened, then come back…",
     "description": "Popup: status while the picker is open."

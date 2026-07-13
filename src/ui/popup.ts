@@ -7,7 +7,7 @@ import { type Destination, getPrefs, savePrefs } from './prefs';
 import { restoreFileFromDisk, saveFileToDisk } from './disk';
 import { saveFileToPaper } from './paper';
 import { HAS_GOOGLE_PHOTOS } from './config';
-import { restoreFromPhotos, saveToPhotos } from './google-photos';
+import { saveToPhotos } from './google-photos';
 
 localizeDom();
 
@@ -187,6 +187,7 @@ saveBtn.addEventListener('click', async () => {
       const { imageCount, albumTitle } = await saveToPhotos(file, session, {
         keyMode,
         title: title || undefined,
+        date,
       });
       setStatus(saveStatus, msg('statusSavedCloud', [String(imageCount), albumTitle]));
     } else if (dest === 'paper') {
@@ -234,22 +235,10 @@ restoreBtn.addEventListener('click', async () => {
   }
 });
 
-restorePhotosBtn.addEventListener('click', async () => {
-  if (!restorePw.value) return setStatus(restoreStatus, msg('errNoPassword'), true);
-  restorePhotosBtn.disabled = true;
-  setStatus(restoreStatus, msg('statusPickerOpen'));
-  try {
-    const keyFile = restoreKey.files?.[0];
-    const keyBlock = keyFile ? new Uint8Array(await keyFile.arrayBuffer()) : undefined;
-    const { filename } = await restoreFromPhotos(restorePw.value, keyBlock, (url) => {
-      window.open(url, '_blank', 'noopener');
-    });
-    setStatus(restoreStatus, msg('statusRestored', filename));
-  } catch (err) {
-    setStatus(restoreStatus, friendlyError(err), true);
-  } finally {
-    restorePhotosBtn.disabled = false;
-  }
+// The Photos picker opens in a new tab, which would dismiss this popup and kill
+// the flow — so run the whole Photos restore in its own persistent tab.
+restorePhotosBtn.addEventListener('click', () => {
+  void browser.tabs.create({ url: browser.runtime.getURL('ui/photos.html') });
 });
 
 void loadPrefs();

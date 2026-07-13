@@ -49,6 +49,7 @@ export default defineConfig({
         offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
         popup: resolve(__dirname, 'src/ui/popup.html'),
         options: resolve(__dirname, 'src/ui/options.html'),
+        photos: resolve(__dirname, 'src/ui/photos.html'),
       },
       output: {
         entryFileNames: '[name].js',

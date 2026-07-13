@@ -22,7 +22,7 @@ import {
   type VaultKey,
 } from '@core';
 import { GOOGLE_CLIENT_ID } from './config';
-import { decodeImageBytes, downloadBlob, imageDataToPngBlob } from './image-io';
+import { decodeImageBytes, downloadBlob, imageWithLabelToPngBlob } from './image-io';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/photoslibrary.appendonly',
@@ -138,7 +138,7 @@ async function batchCreate(
 export async function saveToPhotos(
   file: File,
   key: VaultKey,
-  options: { keyMode: KeyMode; title?: string | undefined },
+  options: { keyMode: KeyMode; title?: string | undefined; date?: string | undefined },
 ): Promise<{ imageCount: number; albumTitle: string }> {
   await ensurePermissions();
   const token = await getToken();
@@ -156,7 +156,13 @@ export async function saveToPhotos(
   const created: { fileName: string; uploadToken: string; description: string }[] = [];
   for (let i = 0; i < imagePayloads.length; i++) {
     const img = codec.encode(imagePayloads[i]!, PROFILE_CLOUD);
-    const png = new Uint8Array(await (await imageDataToPngBlob(img)).arrayBuffer());
+    const blob = await imageWithLabelToPngBlob(img, {
+      title: options.title,
+      date: options.date,
+      index: i + 1,
+      total: imagePayloads.length,
+    });
+    const png = new Uint8Array(await blob.arrayBuffer());
     const fileName = `imagevault-${setHex}-${String(i + 1).padStart(2, '0')}.png`;
     const uploadToken = await uploadBytes(token, png, fileName);
     created.push({ fileName, uploadToken, description: `page ${i + 1}/${imagePayloads.length}` });

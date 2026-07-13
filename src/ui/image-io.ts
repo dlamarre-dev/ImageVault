@@ -9,8 +9,8 @@ import { CODEC_QR_GRID, getCodec, type ImageDataLike } from '@core';
 
 /** Optional human-readable label band drawn above the QR (cleartext — plan §1). */
 export interface LabelBand {
-  title?: string;
-  date?: string;
+  title?: string | undefined;
+  date?: string | undefined;
   index: number;
   total: number;
 }
