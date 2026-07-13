@@ -37,6 +37,30 @@
   "labelImages": { "message": "Fichiers image", "description": "Popup: image files input label." },
   "labelPassword": { "message": "Mot de passe", "description": "Popup: password input label." },
 
+  "destHeading": { "message": "Destination", "description": "Popup: destination selector heading." },
+  "destDisk": { "message": "Disque (PNG ou .zip)", "description": "Popup: disk destination." },
+  "destPaper": { "message": "Papier (PDF imprimable)", "description": "Popup: paper destination." },
+  "labelInstructions": {
+    "message": "Inclure une feuille d'instructions",
+    "description": "Popup: paper option to add the instruction page."
+  },
+  "labelPasswordHint": {
+    "message": "Indice de mot de passe (optionnel)",
+    "description": "Popup: password hint printed on the instruction sheet."
+  },
+  "labelKeyLocation": {
+    "message": "Note d'emplacement de la clé (optionnel)",
+    "description": "Popup: key location note printed on the instruction sheet."
+  },
+  "paperCleartextWarn": {
+    "message": "La feuille d'instructions n'est pas chiffrée — écrivez un indice, jamais le mot de passe.",
+    "description": "Popup: cleartext warning for the instruction sheet fields."
+  },
+  "statusSavedPdf": {
+    "message": "Terminé. PDF de $COUNT$ page(s) téléchargé. Conservez votre mot de passe.",
+    "description": "Popup: status after saving to PDF.",
+    "placeholders": { "count": { "content": "$1" } }
+  },
   "keyModeHeading": { "message": "Stockage de la clé", "description": "Popup: key-mode selector heading." },
   "keyModeEmbedded": {
     "message": "Dans les images (autonome)",

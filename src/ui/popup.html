@@ -40,6 +40,18 @@
         <p class="muted"><span data-i18n="estimateImages"></span> <span id="estimate">—</span></p>
 
         <fieldset>
+          <legend data-i18n="destHeading"></legend>
+          <label class="radio"
+            ><input type="radio" name="dest" value="disk" checked />
+            <span data-i18n="destDisk"></span
+          ></label>
+          <label class="radio"
+            ><input type="radio" name="dest" value="paper" />
+            <span data-i18n="destPaper"></span
+          ></label>
+        </fieldset>
+
+        <fieldset>
           <legend data-i18n="keyModeHeading"></legend>
           <label class="radio"
             ><input type="radio" name="keymode" value="embedded" checked />
@@ -61,9 +73,21 @@
           <p class="muted warn" data-i18n="bandWarning"></p>
         </div>
 
-        <label class="checkbox"
+        <label id="zip-field" class="checkbox"
           ><input id="as-zip" type="checkbox" checked /> <span data-i18n="labelAsZip"></span
         ></label>
+
+        <div id="paper-fields" hidden>
+          <label class="checkbox"
+            ><input id="add-instructions" type="checkbox" />
+            <span data-i18n="labelInstructions"></span
+          ></label>
+          <label data-i18n="labelPasswordHint" for="pw-hint"></label>
+          <input id="pw-hint" type="text" />
+          <label data-i18n="labelKeyLocation" for="key-location"></label>
+          <input id="key-location" type="text" />
+          <p class="muted warn" data-i18n="paperCleartextWarn"></p>
+        </div>
 
         <button id="save-btn" data-i18n="btnSave"></button>
         <p id="save-status" class="status" role="status"></p>

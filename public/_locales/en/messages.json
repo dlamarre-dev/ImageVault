@@ -37,6 +37,30 @@
   "labelImages": { "message": "Image files", "description": "Popup: image files input label." },
   "labelPassword": { "message": "Password", "description": "Popup: password input label." },
 
+  "destHeading": { "message": "Destination", "description": "Popup: destination selector heading." },
+  "destDisk": { "message": "Disk (PNG or .zip)", "description": "Popup: disk destination." },
+  "destPaper": { "message": "Paper (printable PDF)", "description": "Popup: paper destination." },
+  "labelInstructions": {
+    "message": "Include an instruction sheet",
+    "description": "Popup: paper option to add the instruction page."
+  },
+  "labelPasswordHint": {
+    "message": "Password hint (optional)",
+    "description": "Popup: password hint printed on the instruction sheet."
+  },
+  "labelKeyLocation": {
+    "message": "Key location note (optional)",
+    "description": "Popup: key location note printed on the instruction sheet."
+  },
+  "paperCleartextWarn": {
+    "message": "The instruction sheet is not encrypted — write a hint, never the password.",
+    "description": "Popup: cleartext warning for the instruction sheet fields."
+  },
+  "statusSavedPdf": {
+    "message": "Done. Downloaded a PDF with $COUNT$ page(s). Keep your password safe.",
+    "description": "Popup: status after saving to PDF.",
+    "placeholders": { "count": { "content": "$1" } }
+  },
   "keyModeHeading": { "message": "Key storage", "description": "Popup: key-mode selector heading." },
   "keyModeEmbedded": {
     "message": "In the images (self-contained)",

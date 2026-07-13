@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PROFILE_DISK } from '../header';
+import { PROFILE_DISK, PROFILE_PAPER } from '../header';
 import { getCodec, qrGridCodec } from './index';
 
 describe('QR-grid codec', () => {
@@ -22,6 +22,13 @@ describe('QR-grid codec', () => {
     const size = qrGridCodec.capacity(PROFILE_DISK) - 40; // just under the budget
     const payload = Uint8Array.from({ length: size }, (_, i) => (i * 97 + 13) & 0xff);
     const img = qrGridCodec.encode(payload, PROFILE_DISK);
+    expect([...qrGridCodec.decode(img)]).toEqual([...payload]);
+  });
+
+  it('round-trips a payload at the paper profile (high ECC)', () => {
+    const size = qrGridCodec.capacity(PROFILE_PAPER) - 20;
+    const payload = Uint8Array.from({ length: size }, (_, i) => (i * 53 + 3) & 0xff);
+    const img = qrGridCodec.encode(payload, PROFILE_PAPER);
     expect([...qrGridCodec.decode(img)]).toEqual([...payload]);
   });
 

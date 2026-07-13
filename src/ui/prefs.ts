@@ -8,18 +8,24 @@ import type { KeyMode } from '@core';
 
 const PREFS_KEY = 'imagevault.prefs';
 
+export type Destination = 'disk' | 'paper';
+
 export interface Prefs {
+  destination: Destination;
   keyMode: KeyMode;
   addBand: boolean;
   title: string;
   asZip: boolean;
+  includeInstructions: boolean;
 }
 
 const DEFAULT_PREFS: Prefs = {
+  destination: 'disk',
   keyMode: 'embedded',
   addBand: false,
   title: '',
   asZip: true,
+  includeInstructions: false,
 };
 
 export async function getPrefs(): Promise<Prefs> {
