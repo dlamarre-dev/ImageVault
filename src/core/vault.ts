@@ -24,7 +24,9 @@ import {
   createKeyBlock,
   decryptBytes,
   encryptBytes,
+  GCM_TAG_LEN,
   IV_LEN,
+  KEY_BLOCK_LEN,
   parseKeyBlock,
   serializeKeyBlock,
   unlockKeyBlock,
@@ -35,18 +37,29 @@ import {
   CODEC_QR_GRID,
   type Header,
   HASH_LEN,
+  HEADER_LEN,
   PROFILE_DISK,
   decodeImagePayload,
   encodeImagePayload,
 } from './header';
 import { SET_ID_LEN } from './header';
+import { getCodec } from './codec';
 
 /** Hard limit on the source file — this vault targets small secrets (plan §5). */
 export const MAX_FILE_BYTES = 64 * 1024;
 /** Independent safety ceiling on the number of images (plan §5). */
 export const MAX_IMAGES = 50;
-/** Target data bytes per shard; header + shard must fit one QR symbol. */
-export const DATA_PER_SHARD = 1024;
+
+/** Bytes of shard data that fit one image for a codec/profile (header aside). */
+function dataPerShard(codecId: number, profile: number): number {
+  return getCodec(codecId).capacity(profile) - HEADER_LEN;
+}
+
+/** Analytical vault blob length for a given plaintext envelope length. */
+function blobLenFor(envelopeLen: number): number {
+  // [ KB_LEN u16 ][ key block ][ IV ][ ciphertext = envelope + GCM tag ]
+  return 2 + KEY_BLOCK_LEN + IV_LEN + envelopeLen + GCM_TAG_LEN;
+}
 
 export interface ExportOptions {
   profile?: number;
@@ -89,12 +102,38 @@ function parseVaultBlob(blob: Uint8Array): {
   return { keyBlock, iv, ciphertext };
 }
 
-/** How many images a source of `contentLen` bytes will need (rough, for UI). */
-export function estimateImageCount(contentLen: number): number {
-  // Worst case: no compression, + AES-GCM tag + iv + a ~90-byte key block.
-  const approxBlob = contentLen + 16 + IV_LEN + 90 + 2;
-  const k = Math.max(1, Math.ceil(approxBlob / DATA_PER_SHARD));
+/**
+ * Rough worst-case image count from a content length alone (no compression
+ * assumed). Useful for a synchronous ceiling; prefer `estimateImages` for an
+ * accurate figure, since compression often reduces the real count sharply.
+ */
+export function estimateImageCount(
+  contentLen: number,
+  profile: number = PROFILE_DISK,
+  codecId: number = CODEC_QR_GRID,
+): number {
+  const blobLen = blobLenFor(contentLen + 64); // + small filename allowance
+  const k = Math.max(1, Math.ceil(blobLen / dataPerShard(codecId, profile)));
   return k + parityCount(k);
+}
+
+/**
+ * Accurate image count: compresses the content exactly as export would, so the
+ * figure matches what `exportVault` produces (differing only if compression is
+ * nondeterministic, which gzip is not here).
+ */
+export async function estimateImages(
+  filename: string,
+  content: Uint8Array,
+  options: ExportOptions = {},
+): Promise<{ k: number; m: number; images: number }> {
+  const profile = options.profile ?? PROFILE_DISK;
+  const codecId = options.codecId ?? CODEC_QR_GRID;
+  const envelope = await buildPayload(filename, content);
+  const blobLen = blobLenFor(envelope.length);
+  const k = Math.max(1, Math.ceil(blobLen / dataPerShard(codecId, profile)));
+  const m = parityCount(k);
+  return { k, m, images: k + m };
 }
 
 export async function exportVault(
@@ -117,7 +156,7 @@ export async function exportVault(
   const { iv, ciphertext } = await encryptBytes(dek, envelope);
   const blob = serializeVaultBlob(serializeKeyBlock(block), iv, ciphertext);
 
-  const k = Math.max(1, Math.ceil(blob.length / DATA_PER_SHARD));
+  const k = Math.max(1, Math.ceil(blob.length / dataPerShard(codecId, profile)));
   const m = parityCount(k);
   const total = k + m;
   if (total > MAX_IMAGES) {

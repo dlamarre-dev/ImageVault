@@ -23,6 +23,13 @@ const subtle = globalThis.crypto.subtle;
 export const SALT_LEN = 16;
 export const IV_LEN = 12; // AES-GCM standard nonce length
 export const DEK_LEN = 32; // AES-256
+export const GCM_TAG_LEN = 16;
+/**
+ * Fixed serialized size of a key block: magic(4) + ver(1) + iterations(4) +
+ * memoryKiB(4) + parallelism(1) + salt(16) + iv(12) + wrappedLen(2) +
+ * wrappedDEK(DEK_LEN + GCM tag). Constant because all fields are fixed-width.
+ */
+export const KEY_BLOCK_LEN = 4 + 1 + 4 + 4 + 1 + SALT_LEN + IV_LEN + 2 + DEK_LEN + GCM_TAG_LEN;
 
 /** Argon2id cost parameters (hashLength is fixed at 32 bytes = the KEK size). */
 export interface Argon2Params {

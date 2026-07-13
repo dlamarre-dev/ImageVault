@@ -18,6 +18,13 @@ describe('QR-grid codec', () => {
     expect([...qrGridCodec.decode(img)]).toEqual([...payload]);
   });
 
+  it('round-trips a large payload near the disk capacity (version-40 QR)', () => {
+    const size = qrGridCodec.capacity(PROFILE_DISK) - 40; // just under the budget
+    const payload = Uint8Array.from({ length: size }, (_, i) => (i * 97 + 13) & 0xff);
+    const img = qrGridCodec.encode(payload, PROFILE_DISK);
+    expect([...qrGridCodec.decode(img)]).toEqual([...payload]);
+  });
+
   it('resolves the codec by header id', () => {
     expect(getCodec(qrGridCodec.id)).toBe(qrGridCodec);
     expect(() => getCodec(99)).toThrow(/unknown codec/);

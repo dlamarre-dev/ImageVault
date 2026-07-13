@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { type Argon2Params } from './crypto';
-import { MAX_FILE_BYTES, estimateImageCount, exportVault, importVault } from './vault';
+import {
+  MAX_FILE_BYTES,
+  estimateImageCount,
+  estimateImages,
+  exportVault,
+  importVault,
+} from './vault';
 
 const TEST_PARAMS: Argon2Params = { iterations: 1, memoryKiB: 256, parallelism: 1 };
 
@@ -73,9 +79,30 @@ describe('vault export/import round-trip (byte level)', () => {
   });
 });
 
-describe('estimateImageCount', () => {
+describe('estimateImageCount (rough, sync)', () => {
   it('grows with content size and stays >= 3 (k>=1 + MIN_PARITY)', () => {
     expect(estimateImageCount(10)).toBeGreaterThanOrEqual(3);
     expect(estimateImageCount(5000)).toBeGreaterThan(estimateImageCount(10));
+  });
+});
+
+describe('estimateImages (accurate)', () => {
+  it('matches the actual image count for incompressible content', async () => {
+    const content = pseudoRandom(4000, 5);
+    const est = await estimateImages('x.bin', content);
+    const { imagePayloads } = await exportVault('x.bin', content, 'pw', {
+      argon2Params: TEST_PARAMS,
+    });
+    expect(est.images).toBe(imagePayloads.length);
+  });
+
+  it('reflects compression: a compressible file needs fewer images than the worst case', async () => {
+    const content = new Uint8Array(20000).fill(65); // highly compressible
+    const est = await estimateImages('big.txt', content);
+    const { imagePayloads } = await exportVault('big.txt', content, 'pw', {
+      argon2Params: TEST_PARAMS,
+    });
+    expect(est.images).toBe(imagePayloads.length);
+    expect(est.images).toBeLessThan(estimateImageCount(content.length));
   });
 });

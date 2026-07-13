@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import { estimateImageCount } from '@core';
+import { estimateImages } from '@core';
 import { localizeDom } from './i18n';
 import { restoreFileFromDisk, saveFileToDisk } from './disk';
 
@@ -29,9 +29,20 @@ function setStatus(node: HTMLElement, text: string, error = false): void {
   node.classList.toggle('error', error);
 }
 
-saveFile.addEventListener('change', () => {
+saveFile.addEventListener('change', async () => {
   const file = saveFile.files?.[0];
-  estimate.textContent = file ? String(estimateImageCount(file.size)) : '—';
+  if (!file) {
+    estimate.textContent = '—';
+    return;
+  }
+  estimate.textContent = '…';
+  try {
+    const content = new Uint8Array(await file.arrayBuffer());
+    const { images } = await estimateImages(file.name, content);
+    estimate.textContent = String(images);
+  } catch {
+    estimate.textContent = '—';
+  }
 });
 
 saveBtn.addEventListener('click', async () => {

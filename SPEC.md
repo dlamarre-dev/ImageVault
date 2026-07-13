@@ -39,7 +39,17 @@ the per-image payload of §3, placed in **byte mode**. QR's built-in Reed-Solomo
 provides intra-image error correction; the cross-image erasure coding of §7 is
 separate and additional.
 
-- **Error-correction level by profile:** Disk = `M`, Cloud = `Q`, Paper = `H`.
+- **Error-correction level and per-image capacity by profile.** The Disk profile
+  is lossless, so it uses the lowest QR ECC level for maximum density; Cloud and
+  Paper trade capacity for resilience. `capacity` is the usable total payload
+  (header + shard) per image, kept under the version-40 byte-mode maximum:
+
+  | Profile | ECC level | Usable payload (bytes) |
+  | ------- | --------- | ---------------------- |
+  | Disk    | `L`       | 2800                   |
+  | Cloud   | `Q`       | 1600                   |
+  | Paper   | `H`       | 1100                   |
+
 - **Quiet zone:** 4 modules.
 - **Rendering:** dark modules are painted black (luminance 0), light modules white
   (luminance 255), scaled by an integer module size. The Disk profile is lossless
@@ -160,8 +170,9 @@ Cross-image redundancy so the vault survives lost or corrupt images.
 
 ### 7.2 Parameters
 
-- `k` = number of data shards = `max(1, ceil(blobLen / 1024))`
-  (target ≤ 1024 payload bytes per shard so header + shard fit one QR symbol).
+- `dataPerShard` = `capacity(profile) − HEADER_LEN` (see §2), i.e. the shard bytes
+  that fit one image once the 33-byte header is accounted for.
+- `k` = number of data shards = `max(1, ceil(blobLen / dataPerShard))`.
 - `m` = number of parity shards = `max(ceil(k * 0.3), 2)` — a +30% parity ratio
   with an absolute floor of **2** (`MIN_PARITY`), so even a one-shard vault keeps
   two spares. Tolerates the loss/corruption of up to `m` images.
@@ -215,7 +226,7 @@ If fewer than `k` shards survive, reconstruction is impossible.
 | KDF defaults     | iterations 3, memory 64 MiB, parallelism 1        |
 | GF polynomial    | `0x11D`, generator `0x02`                         |
 | Parity           | `m = max(ceil(k·0.3), 2)`                          |
-| Data per shard   | ≤ 1024 bytes (target)                             |
+| Data per shard   | `capacity(profile) − 33` (Disk 2767, Cloud 1567, Paper 1067) |
 | Limits           | file ≤ 64 KiB, images ≤ 50                         |
 | Compression      | gzip (RFC 1952), opportunistic                    |
 

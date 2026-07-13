@@ -14,6 +14,8 @@ export interface ImageDataLike {
 export interface Codec {
   /** Matches the CODEC_ID stored in the image header. */
   readonly id: number;
+  /** Max total payload bytes (header + shard) that fit one image at this profile. */
+  capacity(profile: number): number;
   encode(payload: Uint8Array, profile: number): ImageDataLike;
   decode(image: ImageDataLike): Uint8Array;
 }

@@ -19,19 +19,31 @@ import type { Codec, ImageDataLike } from './types';
 
 const QUIET_ZONE = 4; // modules of white border, per the QR spec
 
-/** Robustness knobs per profile. Disk is lossless, so it can be dense. */
+/**
+ * Robustness knobs per profile. Disk is lossless so it uses the lowest QR ECC
+ * level (maximum data density); Cloud/Paper trade capacity for resilience.
+ *
+ * `maxPayload` is the usable total payload (header + shard) per image, kept a
+ * little under the theoretical version-40 byte-mode maximum for each ECC level
+ * (2953/2331/1663/1273 for L/M/Q/H) to leave headroom for mode overhead.
+ */
 function profileSettings(profile: number): {
   ecc: 'L' | 'M' | 'Q' | 'H';
   moduleScale: number;
+  maxPayload: number;
 } {
   switch (profile) {
     case PROFILE_PAPER:
-      return { ecc: 'H', moduleScale: 8 };
+      return { ecc: 'H', moduleScale: 8, maxPayload: 1100 };
     case PROFILE_CLOUD:
-      return { ecc: 'Q', moduleScale: 8 };
+      return { ecc: 'Q', moduleScale: 8, maxPayload: 1600 };
     default: // PROFILE_DISK
-      return { ecc: 'M', moduleScale: 6 };
+      return { ecc: 'L', moduleScale: 6, maxPayload: 2800 };
   }
+}
+
+function capacity(profile: number): number {
+  return profileSettings(profile).maxPayload;
 }
 
 function encode(payload: Uint8Array, profile: number): ImageDataLike {
@@ -70,4 +82,4 @@ function decode(image: ImageDataLike): Uint8Array {
   return Uint8Array.from(result.binaryData);
 }
 
-export const qrGridCodec: Codec = { id: CODEC_QR_GRID, encode, decode };
+export const qrGridCodec: Codec = { id: CODEC_QR_GRID, capacity, encode, decode };
