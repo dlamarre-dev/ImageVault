@@ -1,0 +1,99 @@
+"""Command-line reference decoder.
+
+Usage:
+    python -m imagevault.decode IMAGES... --password PW [--key FILE] [--out DIR]
+
+IMAGES may be image files, directories, or .zip archives. A .key file (loose,
+or inside a .zip/directory) is picked up automatically for keyfile-mode sets.
+"""
+
+from __future__ import annotations
+
+import argparse
+import getpass
+import os
+import sys
+import zipfile
+
+from .crypto import WrongPasswordError
+from .pipeline import MissingKeyError, decode_vault
+from .qr import decode_image
+
+_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff")
+
+
+def _is_image(name: str) -> bool:
+    return name.lower().endswith(_IMAGE_EXTS)
+
+
+def _gather(paths: list[str]) -> tuple[list[bytes], bytes | None]:
+    """Collect image byte blobs and an optional key block from the inputs."""
+    images: list[bytes] = []
+    key_block: bytes | None = None
+
+    def add_file(name: str, data: bytes) -> None:
+        nonlocal key_block
+        if name.lower().endswith(".key"):
+            key_block = data
+        elif _is_image(name):
+            images.append(data)
+
+    for path in paths:
+        if os.path.isdir(path):
+            for root, _dirs, files in os.walk(path):
+                for f in files:
+                    with open(os.path.join(root, f), "rb") as fh:
+                        add_file(f, fh.read())
+        elif path.lower().endswith(".zip"):
+            with zipfile.ZipFile(path) as zf:
+                for entry in zf.namelist():
+                    add_file(entry, zf.read(entry))
+        else:
+            with open(path, "rb") as fh:
+                add_file(os.path.basename(path), fh.read())
+
+    return images, key_block
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="ImageVault reference decoder")
+    parser.add_argument("inputs", nargs="+", help="image files, directories, or .zip archives")
+    parser.add_argument("--password", help="vault password (prompted if omitted)")
+    parser.add_argument("--key", help="path to a .key file (keyfile-mode sets)")
+    parser.add_argument("--out", default=".", help="output directory (default: current)")
+    args = parser.parse_args(argv)
+
+    images, key_block = _gather(args.inputs)
+    if args.key:
+        with open(args.key, "rb") as fh:
+            key_block = fh.read()
+    if not images:
+        print("no images found in the inputs", file=sys.stderr)
+        return 2
+
+    payloads = [p for p in (decode_image(img) for img in images) if p is not None]
+    print(f"decoded {len(payloads)} of {len(images)} image(s)", file=sys.stderr)
+    if not payloads:
+        print("no readable QR codes found", file=sys.stderr)
+        return 1
+
+    password = args.password or getpass.getpass("Password: ")
+    try:
+        restored = decode_vault(payloads, password, key_block)
+    except WrongPasswordError:
+        print("wrong password", file=sys.stderr)
+        return 1
+    except MissingKeyError:
+        print("this set needs a separate .key file (use --key)", file=sys.stderr)
+        return 1
+
+    os.makedirs(args.out, exist_ok=True)
+    out_path = os.path.join(args.out, os.path.basename(restored.filename) or "restored.bin")
+    with open(out_path, "wb") as fh:
+        fh.write(restored.content)
+    print(f"restored {restored.filename} -> {out_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,30 @@
+"""ImageVault reference decoder — a standalone implementation of the ImageVault
+format (see SPEC.md), so a vault can be restored without the browser extension.
+
+Public API (lazily imported so the pure modules — gf256, reedsolomon, format —
+can be used without the crypto / QR dependencies installed):
+    decode_vault(payloads, password, key_block=None) -> RestoredFile
+    decode_image(data) -> bytes | None
+"""
+
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
+_LAZY = {
+    "decode_vault": "pipeline",
+    "RestoredFile": "pipeline",
+    "MissingKeyError": "pipeline",
+    "WrongPasswordError": "crypto",
+    "decode_image": "qr",
+}
+
+__all__ = list(_LAZY)
+
+
+def __getattr__(name: str) -> Any:
+    module = _LAZY.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return getattr(importlib.import_module(f".{module}", __name__), name)

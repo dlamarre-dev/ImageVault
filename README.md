@@ -58,8 +58,10 @@ messages. The unlocked session persists across popup reopens (volatile, until th
 browser closes), and image sets can be saved and restored as a single **.zip**. A
 **Paper** destination generates a printable PDF (one high-ECC QR per page, with a
 readable header and an optional instruction sheet) that restores from scans or photos.
-The on-image format is frozen in [SPEC.md](SPEC.md). The Google Photos destination, the
-Python reference decoder, the stego key mode, and full localization come in later phases.
+A standalone **[Python reference decoder](python/README.md)** restores a vault without the
+extension and runs in CI as a cross-implementation conformance test. The on-image format
+is frozen in [SPEC.md](SPEC.md). The Google Photos destination, the stego key mode, and
+full localization come in later phases.
 
 ## Development
 

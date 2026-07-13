@@ -44,7 +44,7 @@ export default [
   {
     // Extension entry points and the diagnostic spike log to the console on
     // purpose (that is how the WASM spike is validated in-browser).
-    files: ['src/background/**', 'src/offscreen/**', 'src/spike/**'],
+    files: ['src/background/**', 'src/offscreen/**', 'src/spike/**', 'scripts/**'],
     rules: {
       'no-console': 'off',
     },

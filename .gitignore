@@ -10,8 +10,12 @@ coverage/
 
 # Python (reference decoder)
 .venv/
+venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+# Generated conformance fixtures (produced by `npm run fixtures`)
+python/tests/_fixtures/
 
 # IDE / editor
 .idea/

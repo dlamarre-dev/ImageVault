@@ -265,5 +265,9 @@ The TypeScript core in `src/core/` is the reference encoder/decoder:
 | Vault blob & flow  | `vault.ts`                    |
 | QR-grid codec      | `codec/qr-grid.ts`            |
 
-A standalone Python reference decoder (Phase 3) will target this same
-specification and double as a cross-implementation conformance test in CI.
+A standalone **Python reference decoder** in `python/imagevault/` implements this
+same specification independently (GF(2^8) + Reed-Solomon, header, key block,
+Argon2id + AES-GCM, gzip, QR decode). It restores a vault without the extension
+and runs in CI as a cross-implementation conformance test: the extension encodes
+and renders fixtures, the Python decoder reads them back, and the two must agree.
+See `python/README.md`.
