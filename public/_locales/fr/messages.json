@@ -14,5 +14,71 @@
   "optionsTitle": {
     "message": "Paramètres d'ImageVault",
     "description": "Heading of the options page."
+  },
+  "saveHeading": {
+    "message": "Sauvegarder un fichier",
+    "description": "Popup: heading of the save section."
+  },
+  "restoreHeading": {
+    "message": "Restaurer un fichier",
+    "description": "Popup: heading of the restore section."
+  },
+  "labelFile": {
+    "message": "Fichier",
+    "description": "Popup: file input label (save)."
+  },
+  "labelImages": {
+    "message": "Fichiers image",
+    "description": "Popup: image files input label (restore)."
+  },
+  "labelPassword": {
+    "message": "Mot de passe",
+    "description": "Popup: password input label."
+  },
+  "btnSave": {
+    "message": "Chiffrer et télécharger les images",
+    "description": "Popup: save button."
+  },
+  "btnRestore": {
+    "message": "Restaurer le fichier",
+    "description": "Popup: restore button."
+  },
+  "estimateImages": {
+    "message": "Images estimées :",
+    "description": "Popup: label preceding the estimated image count."
+  },
+  "statusSaving": {
+    "message": "Chiffrement et rendu des images…",
+    "description": "Popup: status while saving."
+  },
+  "statusSaved": {
+    "message": "Terminé. $COUNT$ image(s) téléchargée(s). Conservez votre mot de passe : il est irrécupérable.",
+    "description": "Popup: status after saving.",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "statusRestoring": {
+    "message": "Décodage des images et restauration…",
+    "description": "Popup: status while restoring."
+  },
+  "statusRestored": {
+    "message": "$NAME$ restauré et téléchargé.",
+    "description": "Popup: status after restoring.",
+    "placeholders": {
+      "name": { "content": "$1" }
+    }
+  },
+  "errNoFile": {
+    "message": "Choisissez d'abord un fichier.",
+    "description": "Popup: validation error."
+  },
+  "errNoImages": {
+    "message": "Choisissez les fichiers image à restaurer.",
+    "description": "Popup: validation error."
+  },
+  "errNoPassword": {
+    "message": "Saisissez un mot de passe.",
+    "description": "Popup: validation error."
   }
 }

@@ -19,6 +19,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
+      "@core": ["src/core/index.ts"],
       "@core/*": ["src/core/*"]
     }
   },

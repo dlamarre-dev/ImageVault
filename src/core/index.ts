@@ -6,3 +6,12 @@
 
 export * from './bytes';
 export * from './types';
+export * from './gf256';
+export * from './reed-solomon';
+export * from './compress';
+export * from './payload';
+export * from './crypto';
+export * from './header';
+export * from './erasure';
+export * from './vault';
+export * from './codec';

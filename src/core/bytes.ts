@@ -4,6 +4,13 @@
  * unchanged under Node (tests), the service worker, and the offscreen document.
  */
 
+/** Lowercase hex string for a byte array (e.g. for set-id filenames). */
+export function toHex(bytes: Uint8Array): string {
+  let s = '';
+  for (const b of bytes) s += b.toString(16).padStart(2, '0');
+  return s;
+}
+
 /** Concatenate byte arrays into a single Uint8Array. */
 export function concatBytes(...parts: Uint8Array[]): Uint8Array {
   const total = parts.reduce((n, p) => n + p.length, 0);

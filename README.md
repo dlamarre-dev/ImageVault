@@ -47,9 +47,12 @@ not stop restoration** as long as at least `k` images survive.
 
 ## Status
 
-🚧 **Early development — Init phase.** This repository currently contains the project
-scaffold: tooling, cross-browser Manifest V3 skeleton, i18n, CI, and a WASM-under-CSP
-validation spike. The cryptographic core arrives in Phase 1.
+🚧 **Early development — Phase 1 (offline core).** The full offline pipeline is
+implemented and tested: Argon2id KEK/DEK, AES-GCM, opportunistic gzip, Reed-Solomon
+erasure coding, the QR-grid image codec, the self-describing header, and the **Disk**
+destination (save a file as a set of PNG images, restore it — tolerating missing
+images). The on-image format is frozen in [SPEC.md](SPEC.md). Paper and Google Photos
+destinations, key modes, and full localization come in later phases.
 
 ## Development
 

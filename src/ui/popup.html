@@ -9,8 +9,30 @@
   <body>
     <main class="panel">
       <h1 data-i18n="extName">ImageVault</h1>
-      <p data-i18n="popupTagline"></p>
-      <p class="muted">Init scaffold — core pipeline arrives in Phase 1.</p>
+      <p class="muted" data-i18n="popupTagline"></p>
+
+      <section>
+        <h2 data-i18n="saveHeading"></h2>
+        <label data-i18n="labelFile" for="save-file"></label>
+        <input id="save-file" type="file" />
+        <p class="muted"><span data-i18n="estimateImages"></span> <span id="estimate">—</span></p>
+        <label data-i18n="labelPassword" for="save-pw"></label>
+        <input id="save-pw" type="password" autocomplete="new-password" />
+        <button id="save-btn" data-i18n="btnSave"></button>
+        <p id="save-status" class="status" role="status"></p>
+      </section>
+
+      <hr />
+
+      <section>
+        <h2 data-i18n="restoreHeading"></h2>
+        <label data-i18n="labelImages" for="restore-files"></label>
+        <input id="restore-files" type="file" accept="image/*" multiple />
+        <label data-i18n="labelPassword" for="restore-pw"></label>
+        <input id="restore-pw" type="password" autocomplete="current-password" />
+        <button id="restore-btn" data-i18n="btnRestore"></button>
+        <p id="restore-status" class="status" role="status"></p>
+      </section>
     </main>
     <script type="module" src="./popup.ts"></script>
   </body>

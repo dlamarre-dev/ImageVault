@@ -14,5 +14,71 @@
   "optionsTitle": {
     "message": "ImageVault settings",
     "description": "Heading of the options page."
+  },
+  "saveHeading": {
+    "message": "Save a file",
+    "description": "Popup: heading of the save section."
+  },
+  "restoreHeading": {
+    "message": "Restore a file",
+    "description": "Popup: heading of the restore section."
+  },
+  "labelFile": {
+    "message": "File",
+    "description": "Popup: file input label (save)."
+  },
+  "labelImages": {
+    "message": "Image files",
+    "description": "Popup: image files input label (restore)."
+  },
+  "labelPassword": {
+    "message": "Password",
+    "description": "Popup: password input label."
+  },
+  "btnSave": {
+    "message": "Encrypt & download images",
+    "description": "Popup: save button."
+  },
+  "btnRestore": {
+    "message": "Restore file",
+    "description": "Popup: restore button."
+  },
+  "estimateImages": {
+    "message": "Estimated images:",
+    "description": "Popup: label preceding the estimated image count."
+  },
+  "statusSaving": {
+    "message": "Encrypting and rendering images…",
+    "description": "Popup: status while saving."
+  },
+  "statusSaved": {
+    "message": "Done. Downloaded $COUNT$ image(s). Keep your password safe — it cannot be recovered.",
+    "description": "Popup: status after saving.",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "statusRestoring": {
+    "message": "Decoding images and restoring…",
+    "description": "Popup: status while restoring."
+  },
+  "statusRestored": {
+    "message": "Restored $NAME$ and downloaded it.",
+    "description": "Popup: status after restoring.",
+    "placeholders": {
+      "name": { "content": "$1" }
+    }
+  },
+  "errNoFile": {
+    "message": "Choose a file first.",
+    "description": "Popup: validation error."
+  },
+  "errNoImages": {
+    "message": "Choose the image files to restore from.",
+    "description": "Popup: validation error."
+  },
+  "errNoPassword": {
+    "message": "Enter a password.",
+    "description": "Popup: validation error."
   }
 }
