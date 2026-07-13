@@ -1,0 +1,80 @@
+# ImageVault
+
+> Encrypt a file and encode it into **robust, error-corrected images** you can store
+> **anywhere** — on disk, on paper, or in the cloud. A cross-browser WebExtension
+> (Chrome, Edge, Firefox) for **small, high-value secrets**: password exports, keys,
+> seed phrases, configs, `.env` files, notes.
+
+ImageVault is a **resilient, support-agnostic vault**, not a stealth steganography tool.
+Your file is encrypted (zero-knowledge) and then encoded into a set of **openly
+artificial images** designed to survive recompression and printing, spread across the
+set with **cross-image error correction** (erasure coding). Store them where you like:
+image files on disk, a printable PDF, or a cloud photo album.
+
+## What it does
+
+**Save (export)**
+
+```
+file → unlock (password → KEK → DEK) → compress → encrypt (AES-GCM)
+     → erasure code (k data + m parity shards, Reed-Solomon)
+     → render each shard as a robust image (profile per destination)
+     → disk (PNG/ZIP) | paper (printable PDF) | cloud album (optional)
+```
+
+**Restore (import)**
+
+```
+import images (any source) → decode each (self-describing header → shard)
+     → Reed-Solomon reconstruct (tolerates up to m missing/corrupt images)
+     → unlock → decrypt → decompress → original file, byte-for-byte
+```
+
+The differentiator: **losing a page, a deleted album image, or an unreadable code does
+not stop restoration** as long as at least `k` images survive.
+
+## Design principles
+
+- **No deniability.** The images look like coded noise, not vacation photos — this is
+  deliberate; we optimize for robustness, not concealment.
+- **Small secrets.** ~4× size overhead; large binaries are out of scope.
+- **No single support is trusted.** Resilience (multiple destinations + erasure coding)
+  is the value proposition.
+- **The offline core (file → images → disk/paper) depends on no third-party service or
+  network.** Google Photos is an optional destination only.
+- **Auditable.** Open source (MIT), PR-gated, with a versioned format spec and a
+  standalone Python reference decoder so your data survives even if the extension does not.
+
+## Status
+
+🚧 **Early development — Init phase.** This repository currently contains the project
+scaffold: tooling, cross-browser Manifest V3 skeleton, i18n, CI, and a WASM-under-CSP
+validation spike. The cryptographic core arrives in Phase 1.
+
+## Development
+
+Requires Node.js ≥ 20.
+
+```bash
+npm install
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint
+npm test            # vitest
+npm run build       # build the Chrome/Edge extension into dist/
+npm run build:firefox
+```
+
+Each target builds into its own directory. Load `dist/chrome/` as an unpacked extension
+(`chrome://extensions` → Developer mode → Load unpacked), or `dist/firefox/` in Firefox
+(`about:debugging` → This Firefox → Load Temporary Add-on → pick its `manifest.json`).
+
+## Contributing & security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). All contributions
+go through pull requests with required checks (lint, typecheck, tests, build). Please
+report vulnerabilities privately via GitHub Security Advisories — never crypto in a
+public issue.
+
+## License
+
+[MIT](LICENSE).

@@ -1,0 +1,18 @@
+{
+  "extName": {
+    "message": "ImageVault: encrypt & back up secrets as QR / paper images",
+    "description": "Extension name shown in stores and the browser (max 75 chars). Keyword-oriented, not literal branding (plan §7)."
+  },
+  "extDesc": {
+    "message": "Encrypt a file into robust, error-corrected images you can store on disk, print on paper, or upload to the cloud.",
+    "description": "Store listing description (max 132 chars)."
+  },
+  "popupTagline": {
+    "message": "Encrypt a file into resilient images — disk, paper, or cloud.",
+    "description": "Short tagline shown in the popup."
+  },
+  "optionsTitle": {
+    "message": "ImageVault settings",
+    "description": "Heading of the options page."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "extName": {
+    "message": "ImageVault : chiffrez et sauvegardez vos secrets en images QR / papier",
+    "description": "Extension name shown in stores and the browser (max 75 chars). Keyword-oriented, not literal branding (plan §7)."
+  },
+  "extDesc": {
+    "message": "Chiffrez un fichier en images robustes et corrigées d'erreurs, à garder sur disque, imprimer ou téléverser.",
+    "description": "Store listing description (max 132 chars)."
+  },
+  "popupTagline": {
+    "message": "Chiffrez un fichier en images résilientes — disque, papier ou cloud.",
+    "description": "Short tagline shown in the popup."
+  },
+  "optionsTitle": {
+    "message": "Paramètres d'ImageVault",
+    "description": "Heading of the options page."
+  }
+}

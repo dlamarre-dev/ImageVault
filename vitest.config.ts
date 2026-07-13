@@ -1,0 +1,29 @@
+import { defineConfig } from 'vitest/config';
+import { fileURLToPath } from 'node:url';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@core': fileURLToPath(new URL('./src/core', import.meta.url)),
+    },
+  },
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      // The core (crypto / codec / erasure coding) is the trust boundary and
+      // carries a high coverage bar. UI glue is exercised pragmatically.
+      include: ['src/core/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/*.d.ts'],
+      thresholds: {
+        // Raised toward 90% as Phase 1 lands real implementations.
+        lines: 80,
+        functions: 80,
+        branches: 70,
+        statements: 80,
+      },
+    },
+  },
+});

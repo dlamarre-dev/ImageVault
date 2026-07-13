@@ -1,0 +1,28 @@
+# Private working files (plans, notes — not for publication)
+local/
+
+# Node / build
+node_modules/
+dist/
+build/
+coverage/
+*.log
+
+# Python (reference decoder)
+.venv/
+__pycache__/
+*.pyc
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local config
+.env
+.env.*
+*.key
