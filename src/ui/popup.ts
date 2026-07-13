@@ -1,35 +1,77 @@
 import browser from 'webextension-polyfill';
-import { estimateImages, WrongPasswordError } from '@core';
+import { estimateImages, WrongPasswordError, type KeyMode } from '@core';
 import { localizeDom } from './i18n';
+import { el, errText, msg, setStatus, show } from './dom';
+import { currentSession, isKeySet, lock, unlock } from './keystore';
 import { restoreFileFromDisk, saveFileToDisk } from './disk';
 
 localizeDom();
 
-const msg = (key: string, subs?: string | string[]) => browser.i18n.getMessage(key, subs);
+const noKeySection = el('no-key');
+const lockedSection = el('locked');
+const saveSection = el('save');
 
-const el = <T extends HTMLElement>(id: string): T => {
-  const found = document.getElementById(id);
-  if (!found) throw new Error(`missing element #${id}`);
-  return found as T;
-};
+const unlockPw = el<HTMLInputElement>('unlock-pw');
+const unlockBtn = el<HTMLButtonElement>('unlock-btn');
+const unlockStatus = el('unlock-status');
 
 const saveFile = el<HTMLInputElement>('save-file');
-const savePw = el<HTMLInputElement>('save-pw');
 const saveBtn = el<HTMLButtonElement>('save-btn');
-const saveStatus = el<HTMLParagraphElement>('save-status');
-const estimate = el<HTMLSpanElement>('estimate');
+const saveStatus = el('save-status');
+const estimate = el('estimate');
+const lockBtn = el<HTMLButtonElement>('lock-btn');
+const addBand = el<HTMLInputElement>('add-band');
+const bandFields = el('band-fields');
+const bandTitle = el<HTMLInputElement>('band-title');
 
 const restoreFiles = el<HTMLInputElement>('restore-files');
+const restoreKey = el<HTMLInputElement>('restore-key');
 const restorePw = el<HTMLInputElement>('restore-pw');
 const restoreBtn = el<HTMLButtonElement>('restore-btn');
-const restoreStatus = el<HTMLParagraphElement>('restore-status');
+const restoreStatus = el('restore-status');
 
-function setStatus(node: HTMLElement, text: string, error = false): void {
-  node.textContent = text;
-  node.classList.toggle('error', error);
+function selectedKeyMode(): KeyMode {
+  const checked = document.querySelector<HTMLInputElement>('input[name="keymode"]:checked');
+  return (checked?.value as KeyMode) ?? 'embedded';
 }
 
-saveFile.addEventListener('change', async () => {
+/** Reflect the current key/session state in which section is visible. */
+async function refreshState(): Promise<void> {
+  const hasKey = await isKeySet();
+  const unlocked = currentSession() !== null;
+  show(noKeySection, !hasKey);
+  show(lockedSection, hasKey && !unlocked);
+  show(saveSection, hasKey && unlocked);
+}
+
+el<HTMLButtonElement>('open-options').addEventListener('click', () => {
+  void browser.runtime.openOptionsPage();
+});
+
+unlockBtn.addEventListener('click', async () => {
+  if (!unlockPw.value) return setStatus(unlockStatus, msg('errNoPassword'), true);
+  unlockBtn.disabled = true;
+  try {
+    await unlock(unlockPw.value);
+    unlockPw.value = '';
+    setStatus(unlockStatus, '');
+    await refreshState();
+  } catch (err) {
+    const text = err instanceof WrongPasswordError ? msg('errWrongPassword') : errText(err);
+    setStatus(unlockStatus, text, true);
+  } finally {
+    unlockBtn.disabled = false;
+  }
+});
+
+lockBtn.addEventListener('click', async () => {
+  lock();
+  await refreshState();
+});
+
+addBand.addEventListener('change', () => show(bandFields, addBand.checked));
+
+async function updateEstimate(): Promise<void> {
   const file = saveFile.files?.[0];
   if (!file) {
     estimate.textContent = '—';
@@ -38,25 +80,37 @@ saveFile.addEventListener('change', async () => {
   estimate.textContent = '…';
   try {
     const content = new Uint8Array(await file.arrayBuffer());
-    const { images } = await estimateImages(file.name, content);
+    const { images } = await estimateImages(file.name, content, { keyMode: selectedKeyMode() });
     estimate.textContent = String(images);
   } catch {
     estimate.textContent = '—';
   }
-});
+}
+
+saveFile.addEventListener('change', updateEstimate);
+for (const radio of document.querySelectorAll('input[name="keymode"]')) {
+  radio.addEventListener('change', updateEstimate);
+}
 
 saveBtn.addEventListener('click', async () => {
+  const session = currentSession();
+  if (!session) return setStatus(saveStatus, msg('errLocked'), true);
   const file = saveFile.files?.[0];
   if (!file) return setStatus(saveStatus, msg('errNoFile'), true);
-  if (!savePw.value) return setStatus(saveStatus, msg('errNoPassword'), true);
+
+  const keyMode = selectedKeyMode();
+  const label = addBand.checked
+    ? { title: bandTitle.value.trim(), date: new Date().toISOString().slice(0, 10) }
+    : undefined;
 
   saveBtn.disabled = true;
   setStatus(saveStatus, msg('statusSaving'));
   try {
-    const { imageCount } = await saveFileToDisk(file, savePw.value);
-    setStatus(saveStatus, msg('statusSaved', String(imageCount)));
+    const { imageCount } = await saveFileToDisk(file, session, { keyMode, label });
+    const key = keyMode === 'embedded' ? 'statusSaved' : 'statusSavedKeyfile';
+    setStatus(saveStatus, msg(key, String(imageCount)));
   } catch (err) {
-    setStatus(saveStatus, String(err instanceof Error ? err.message : err), true);
+    setStatus(saveStatus, errText(err), true);
   } finally {
     saveBtn.disabled = false;
   }
@@ -70,15 +124,15 @@ restoreBtn.addEventListener('click', async () => {
   restoreBtn.disabled = true;
   setStatus(restoreStatus, msg('statusRestoring'));
   try {
-    const { filename } = await restoreFileFromDisk(files, restorePw.value);
+    const keyFile = restoreKey.files?.[0];
+    const { filename } = await restoreFileFromDisk(files, restorePw.value, keyFile);
     setStatus(restoreStatus, msg('statusRestored', filename));
   } catch (err) {
-    const text =
-      err instanceof WrongPasswordError
-        ? msg('errWrongPassword')
-        : String(err instanceof Error ? err.message : err);
+    const text = err instanceof WrongPasswordError ? msg('errWrongPassword') : errText(err);
     setStatus(restoreStatus, text, true);
   } finally {
     restoreBtn.disabled = false;
   }
 });
+
+void refreshState();

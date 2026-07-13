@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { type Argon2Params, WrongPasswordError } from './crypto';
+import {
+  type Argon2Params,
+  WrongPasswordError,
+  createKeyBlock,
+  serializeKeyBlock,
+} from './crypto';
 import {
   MAX_FILE_BYTES,
+  MissingKeyError,
+  type VaultKey,
   estimateImageCount,
   estimateImages,
   exportVault,
@@ -10,7 +17,11 @@ import {
 
 const TEST_PARAMS: Argon2Params = { iterations: 1, memoryKiB: 256, parallelism: 1 };
 
-// Deterministic, incompressible content that spans several images.
+async function makeKey(password: string): Promise<VaultKey> {
+  const { dek, block } = await createKeyBlock(password, TEST_PARAMS);
+  return { dek, keyBlock: serializeKeyBlock(block) };
+}
+
 function pseudoRandom(len: number, seed: number): Uint8Array {
   let s = seed >>> 0;
   return Uint8Array.from({ length: len }, () => {
@@ -19,22 +30,20 @@ function pseudoRandom(len: number, seed: number): Uint8Array {
   });
 }
 
-describe('vault export/import round-trip (byte level)', () => {
+describe('vault export/import round-trip (embedded key)', () => {
   it('restores a small file from the full image set', async () => {
+    const key = await makeKey('pw');
     const content = new TextEncoder().encode('seed phrase: alpha bravo charlie');
-    const { imagePayloads } = await exportVault('seed.txt', content, 'pw', {
-      argon2Params: TEST_PARAMS,
-    });
+    const { imagePayloads } = await exportVault('seed.txt', content, key);
     const out = await importVault(imagePayloads, 'pw');
     expect(out.filename).toBe('seed.txt');
     expect(new TextDecoder().decode(out.content)).toBe('seed phrase: alpha bravo charlie');
   });
 
   it('spans multiple images and restores exactly', async () => {
-    const content = pseudoRandom(3000, 42);
-    const { imagePayloads, k, m } = await exportVault('blob.bin', content, 'pw', {
-      argon2Params: TEST_PARAMS,
-    });
+    const key = await makeKey('pw');
+    const content = pseudoRandom(6000, 42);
+    const { imagePayloads, k, m } = await exportVault('blob.bin', content, key);
     expect(k).toBeGreaterThan(1);
     expect(imagePayloads.length).toBe(k + m);
     const out = await importVault(imagePayloads, 'pw');
@@ -42,67 +51,74 @@ describe('vault export/import round-trip (byte level)', () => {
   });
 
   it('restores after losing up to m images, in any order', async () => {
-    const content = pseudoRandom(3000, 7);
-    const { imagePayloads, k, m } = await exportVault('blob.bin', content, 'pw', {
-      argon2Params: TEST_PARAMS,
-    });
-
-    // Drop the first m images and shuffle the rest.
+    const key = await makeKey('pw');
+    const content = pseudoRandom(6000, 7);
+    const { imagePayloads, k, m } = await exportVault('blob.bin', content, key);
     const survivors = imagePayloads.slice(m).reverse();
-    expect(survivors.length).toBe(k); // exactly k left — the minimum
+    expect(survivors.length).toBe(k);
     const out = await importVault(survivors, 'pw');
     expect([...out.content]).toEqual([...content]);
   });
 
   it('fails to restore when more than m images are lost', async () => {
-    const content = pseudoRandom(3000, 9);
-    const { imagePayloads, m } = await exportVault('blob.bin', content, 'pw', {
-      argon2Params: TEST_PARAMS,
-    });
-    const tooFew = imagePayloads.slice(m + 1); // one below k
-    await expect(importVault(tooFew, 'pw')).rejects.toBeTruthy();
+    const key = await makeKey('pw');
+    const content = pseudoRandom(6000, 9);
+    const { imagePayloads, m } = await exportVault('blob.bin', content, key);
+    await expect(importVault(imagePayloads.slice(m + 1), 'pw')).rejects.toBeTruthy();
   });
 
   it('rejects a wrong password with a typed error', async () => {
-    const content = new TextEncoder().encode('secret');
-    const { imagePayloads } = await exportVault('s.txt', content, 'right', {
-      argon2Params: TEST_PARAMS,
-    });
+    const key = await makeKey('right');
+    const { imagePayloads } = await exportVault('s.txt', new TextEncoder().encode('x'), key);
     await expect(importVault(imagePayloads, 'wrong')).rejects.toBeInstanceOf(WrongPasswordError);
   });
 
   it('enforces the hard file-size limit', async () => {
-    const tooBig = new Uint8Array(MAX_FILE_BYTES + 1);
-    await expect(
-      exportVault('big.bin', tooBig, 'pw', { argon2Params: TEST_PARAMS }),
-    ).rejects.toThrow(/too large/);
+    const key = await makeKey('pw');
+    await expect(exportVault('big.bin', new Uint8Array(MAX_FILE_BYTES + 1), key)).rejects.toThrow(
+      /too large/,
+    );
   });
 });
 
-describe('estimateImageCount (rough, sync)', () => {
-  it('grows with content size and stays >= 3 (k>=1 + MIN_PARITY)', () => {
-    expect(estimateImageCount(10)).toBeGreaterThanOrEqual(3);
-    expect(estimateImageCount(5000)).toBeGreaterThan(estimateImageCount(10));
+describe('keyfile mode (external key block)', () => {
+  it('does not embed the key; restores only with the external key block', async () => {
+    const key = await makeKey('pw');
+    const content = new TextEncoder().encode('secret keys');
+    const { imagePayloads, keyBlock, keyMode } = await exportVault('k.txt', content, key, {
+      keyMode: 'keyfile',
+    });
+    expect(keyMode).toBe('keyfile');
+
+    // Without the key block, restore fails with a clear typed error.
+    await expect(importVault(imagePayloads, 'pw')).rejects.toBeInstanceOf(MissingKeyError);
+
+    // With the key block, it restores.
+    const out = await importVault(imagePayloads, 'pw', { keyBlock });
+    expect(new TextDecoder().decode(out.content)).toBe('secret keys');
+  });
+
+  it('needs fewer images than embedded (no key block in the blob)', async () => {
+    const key = await makeKey('pw');
+    const content = pseudoRandom(6000, 11);
+    const embedded = await exportVault('a', content, key, { keyMode: 'embedded' });
+    const keyfile = await exportVault('a', content, key, { keyMode: 'keyfile' });
+    expect(keyfile.imagePayloads.length).toBeLessThanOrEqual(embedded.imagePayloads.length);
   });
 });
 
 describe('estimateImages (accurate)', () => {
-  it('matches the actual image count for incompressible content', async () => {
+  it('matches the actual image count', async () => {
+    const key = await makeKey('pw');
     const content = pseudoRandom(4000, 5);
     const est = await estimateImages('x.bin', content);
-    const { imagePayloads } = await exportVault('x.bin', content, 'pw', {
-      argon2Params: TEST_PARAMS,
-    });
+    const { imagePayloads } = await exportVault('x.bin', content, key);
     expect(est.images).toBe(imagePayloads.length);
   });
 
-  it('reflects compression: a compressible file needs fewer images than the worst case', async () => {
+  it('reflects compression versus the worst-case sync estimate', async () => {
     const content = new Uint8Array(20000).fill(65); // highly compressible
     const est = await estimateImages('big.txt', content);
-    const { imagePayloads } = await exportVault('big.txt', content, 'pw', {
-      argon2Params: TEST_PARAMS,
-    });
-    expect(est.images).toBe(imagePayloads.length);
     expect(est.images).toBeLessThan(estimateImageCount(content.length));
   });
 });

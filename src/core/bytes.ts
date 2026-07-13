@@ -11,6 +11,21 @@ export function toHex(bytes: Uint8Array): string {
   return s;
 }
 
+/** Base64-encode a byte array (for persisting small blobs like the key block). */
+export function toBase64(bytes: Uint8Array): string {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+
+/** Decode a base64 string produced by toBase64. */
+export function fromBase64(b64: string): Uint8Array {
+  const s = atob(b64);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
 /** Concatenate byte arrays into a single Uint8Array. */
 export function concatBytes(...parts: Uint8Array[]): Uint8Array {
   const total = parts.reduce((n, p) => n + p.length, 0);

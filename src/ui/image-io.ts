@@ -7,6 +7,16 @@
 
 import type { ImageDataLike } from '@core';
 
+/** Optional human-readable label band drawn above the QR (cleartext — plan §1). */
+export interface LabelBand {
+  title?: string;
+  date?: string;
+  index: number;
+  total: number;
+}
+
+const BAND_HEIGHT = 70;
+
 /** Render an ImageDataLike to a lossless PNG blob. */
 export async function imageDataToPngBlob(img: ImageDataLike): Promise<Blob> {
   const canvas = new OffscreenCanvas(img.width, img.height);
@@ -15,6 +25,41 @@ export async function imageDataToPngBlob(img: ImageDataLike): Promise<Blob> {
   // Copy into an ArrayBuffer-backed array (ImageData's constructor requires it).
   const pixels = new Uint8ClampedArray(img.data);
   ctx.putImageData(new ImageData(pixels, img.width, img.height), 0, 0);
+  return canvas.convertToBlob({ type: 'image/png' });
+}
+
+/**
+ * Render the QR with an optional readable label band on top. The band lives
+ * *outside* the QR area (its own white strip), so the QR's quiet zone is
+ * untouched and decoding is unaffected. Everything in the band is cleartext.
+ */
+export async function imageWithLabelToPngBlob(
+  img: ImageDataLike,
+  band?: LabelBand,
+): Promise<Blob> {
+  if (!band) return imageDataToPngBlob(img);
+
+  const canvas = new OffscreenCanvas(img.width, img.height + BAND_HEIGHT);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('image-io: 2D canvas context unavailable');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'top';
+  const pad = 12;
+  const maxW = img.width - pad * 2;
+  if (band.title) {
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(band.title, pad, 10, maxW);
+  }
+  const sub = [band.date, `${band.index} / ${band.total}`].filter(Boolean).join('    ');
+  ctx.font = '16px sans-serif';
+  ctx.fillText(sub, pad, 42, maxW);
+
+  const pixels = new Uint8ClampedArray(img.data);
+  ctx.putImageData(new ImageData(pixels, img.width, img.height), 0, BAND_HEIGHT);
   return canvas.convertToBlob({ type: 'image/png' });
 }
 

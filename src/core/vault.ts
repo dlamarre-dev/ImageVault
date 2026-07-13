@@ -19,18 +19,15 @@
 
 import { concatBytes, readU16, writeU16 } from './bytes';
 import {
-  type Argon2Params,
-  DEFAULT_ARGON2,
-  createKeyBlock,
   decryptBytes,
   encryptBytes,
   GCM_TAG_LEN,
   IV_LEN,
   KEY_BLOCK_LEN,
   parseKeyBlock,
-  serializeKeyBlock,
   unlockKeyBlock,
 } from './crypto';
+import type { KeyMode } from './types';
 import { buildPayload, parsePayload } from './payload';
 import { decodeBlob, encodeShards, parityCount } from './erasure';
 import {
@@ -55,16 +52,31 @@ function dataPerShard(codecId: number, profile: number): number {
   return getCodec(codecId).capacity(profile) - HEADER_LEN;
 }
 
-/** Analytical vault blob length for a given plaintext envelope length. */
-function blobLenFor(envelopeLen: number): number {
-  // [ KB_LEN u16 ][ key block ][ IV ][ ciphertext = envelope + GCM tag ]
-  return 2 + KEY_BLOCK_LEN + IV_LEN + envelopeLen + GCM_TAG_LEN;
+/** Analytical vault blob length. `embedKey` includes the wrapped DEK block. */
+function blobLenFor(envelopeLen: number, embedKey: boolean): number {
+  // [ KB_LEN u16 ][ key block? ][ IV ][ ciphertext = envelope + GCM tag ]
+  return 2 + (embedKey ? KEY_BLOCK_LEN : 0) + IV_LEN + envelopeLen + GCM_TAG_LEN;
+}
+
+/** True when this key mode stores the wrapped DEK inside the images. */
+function isEmbedded(keyMode: KeyMode): boolean {
+  return keyMode === 'embedded';
+}
+
+/**
+ * The managed vault key: a random DEK plus its serialized, password-wrapped key
+ * block. Produced by the keystore; the same DEK is reused across vaults.
+ */
+export interface VaultKey {
+  dek: CryptoKey;
+  keyBlock: Uint8Array; // serialized (see crypto.serializeKeyBlock)
 }
 
 export interface ExportOptions {
   profile?: number;
   codecId?: number;
-  argon2Params?: Argon2Params;
+  /** 'embedded' stores the key block in the images; others deliver it externally. */
+  keyMode?: KeyMode;
 }
 
 export interface ExportResult {
@@ -73,6 +85,17 @@ export interface ExportResult {
   k: number;
   m: number;
   setId: Uint8Array;
+  keyMode: KeyMode;
+  /** The serialized key block — save it separately for keyfile/stego modes. */
+  keyBlock: Uint8Array;
+}
+
+/** Thrown when a keyfile/stego set is restored without its external key block. */
+export class MissingKeyError extends Error {
+  constructor() {
+    super('this image set needs a separate key (.key file) to restore');
+    this.name = 'MissingKeyError';
+  }
 }
 
 async function sha256Short(data: Uint8Array): Promise<Uint8Array> {
@@ -112,7 +135,7 @@ export function estimateImageCount(
   profile: number = PROFILE_DISK,
   codecId: number = CODEC_QR_GRID,
 ): number {
-  const blobLen = blobLenFor(contentLen + 64); // + small filename allowance
+  const blobLen = blobLenFor(contentLen + 64, true); // + small filename allowance
   const k = Math.max(1, Math.ceil(blobLen / dataPerShard(codecId, profile)));
   return k + parityCount(k);
 }
@@ -129,8 +152,9 @@ export async function estimateImages(
 ): Promise<{ k: number; m: number; images: number }> {
   const profile = options.profile ?? PROFILE_DISK;
   const codecId = options.codecId ?? CODEC_QR_GRID;
+  const embedKey = isEmbedded(options.keyMode ?? 'embedded');
   const envelope = await buildPayload(filename, content);
-  const blobLen = blobLenFor(envelope.length);
+  const blobLen = blobLenFor(envelope.length, embedKey);
   const k = Math.max(1, Math.ceil(blobLen / dataPerShard(codecId, profile)));
   const m = parityCount(k);
   return { k, m, images: k + m };
@@ -139,7 +163,7 @@ export async function estimateImages(
 export async function exportVault(
   filename: string,
   content: Uint8Array,
-  password: string,
+  key: VaultKey,
   options: ExportOptions = {},
 ): Promise<ExportResult> {
   if (content.length > MAX_FILE_BYTES) {
@@ -149,12 +173,14 @@ export async function exportVault(
   }
   const profile = options.profile ?? PROFILE_DISK;
   const codecId = options.codecId ?? CODEC_QR_GRID;
-  const params = options.argon2Params ?? DEFAULT_ARGON2;
+  const keyMode = options.keyMode ?? 'embedded';
 
   const envelope = await buildPayload(filename, content);
-  const { dek, block } = await createKeyBlock(password, params);
-  const { iv, ciphertext } = await encryptBytes(dek, envelope);
-  const blob = serializeVaultBlob(serializeKeyBlock(block), iv, ciphertext);
+  const { iv, ciphertext } = await encryptBytes(key.dek, envelope);
+  // Embed the key block, or leave it out (KB_LEN=0) so it can be delivered
+  // separately as a .key file (keyfile/stego modes).
+  const embeddedKeyBlock = isEmbedded(keyMode) ? key.keyBlock : new Uint8Array(0);
+  const blob = serializeVaultBlob(embeddedKeyBlock, iv, ciphertext);
 
   const k = Math.max(1, Math.ceil(blob.length / dataPerShard(codecId, profile)));
   const m = parityCount(k);
@@ -183,7 +209,7 @@ export async function exportVault(
     return encodeImagePayload(header, shard);
   });
 
-  return { imagePayloads, k, m, setId };
+  return { imagePayloads, k, m, setId, keyMode, keyBlock: key.keyBlock };
 }
 
 /**
@@ -193,6 +219,7 @@ export async function exportVault(
 export async function importVault(
   payloads: Uint8Array[],
   password: string,
+  opts: { keyBlock?: Uint8Array | undefined } = {},
 ): Promise<{ filename: string; content: Uint8Array }> {
   if (payloads.length === 0) throw new Error('import: no images provided');
 
@@ -214,7 +241,10 @@ export async function importVault(
   }
 
   const { keyBlock, iv, ciphertext } = parseVaultBlob(blob);
-  const dek = await unlockKeyBlock(parseKeyBlock(keyBlock), password);
+  // Embedded key block travels in the blob; otherwise the caller must supply it.
+  const kbBytes = keyBlock.length > 0 ? keyBlock : opts.keyBlock;
+  if (!kbBytes || kbBytes.length === 0) throw new MissingKeyError();
+  const dek = await unlockKeyBlock(parseKeyBlock(kbBytes), password);
   const envelope = await decryptBytes(dek, iv, ciphertext);
   return parsePayload(envelope);
 }

@@ -137,9 +137,24 @@ Argon2id. The key block is self-contained and password-protected.
   is included in `wrappedDEK`, so a wrong password fails to unwrap (authenticated).
 - **salt:** 16 random bytes for the KDF.
 
-Recovery requires **the password _and_ this key block**. In v1 the key block is
-embedded in the vault blob (§6), i.e. inside the images ("embedded" key mode).
-Separate keyfile / stego modes are added in Phase 2 and will extend this section.
+Recovery requires **the password _and_ this key block**.
+
+### 5.2 Key modes
+
+Where the key block travels is chosen per save:
+
+- **embedded** — the key block is stored in the vault blob (§6), i.e. inside the
+  images. The images plus the password are self-sufficient. `KB_LEN > 0`.
+- **keyfile** — the key block is *not* in the images (`KB_LEN = 0`); it is saved
+  separately as a **`.key` file** whose contents are exactly the serialized key
+  block bytes of §5.1 (magic `"IVKY"`). Restore needs the images, the password,
+  and this `.key` file. A leaked image then reveals nothing without the `.key`.
+- **stego** — like keyfile, but the key block is hidden in an ordinary-looking
+  cover image (added in a later phase). At the blob level it is identical to
+  keyfile (`KB_LEN = 0`); only the delivery of the key block differs.
+
+A decoder distinguishes the cases by `KB_LEN`: non-zero means the key block is
+embedded; zero means it must be supplied externally.
 
 ---
 
@@ -151,6 +166,9 @@ needed (besides the password) to decrypt:
 ```
 [ KB_LEN u16 ][ key block (KB_LEN bytes, §5.1) ][ IV 12 ][ ciphertext (§5) ]
 ```
+
+`KB_LEN` is `0` for the keyfile/stego modes (§5.2); the key block is then
+supplied externally at restore time.
 
 `BLOB_LEN` in each header (§3) records the blob's true length so padding added
 during sharding (§7) can be stripped after reconstruction. `HASH_GLOBAL` is

@@ -11,23 +11,70 @@
       <h1 data-i18n="extName">ImageVault</h1>
       <p class="muted" data-i18n="popupTagline"></p>
 
-      <section>
-        <h2 data-i18n="saveHeading"></h2>
+      <!-- No key set up yet -->
+      <section id="no-key" hidden>
+        <h2 data-i18n="noKeyTitle"></h2>
+        <p class="muted" data-i18n="noKeyBody"></p>
+        <button id="open-options" data-i18n="btnOpenOptions"></button>
+      </section>
+
+      <!-- Locked -->
+      <section id="locked" hidden>
+        <h2 data-i18n="unlockHeading"></h2>
+        <p class="muted" data-i18n="unlockPrompt"></p>
+        <label data-i18n="labelPassword" for="unlock-pw"></label>
+        <input id="unlock-pw" type="password" autocomplete="current-password" />
+        <button id="unlock-btn" data-i18n="btnUnlock"></button>
+        <p id="unlock-status" class="status" role="status"></p>
+      </section>
+
+      <!-- Unlocked: save -->
+      <section id="save" hidden>
+        <div class="row">
+          <h2 data-i18n="saveHeading"></h2>
+          <button id="lock-btn" class="linklike" data-i18n="btnLock"></button>
+        </div>
+
         <label data-i18n="labelFile" for="save-file"></label>
         <input id="save-file" type="file" />
         <p class="muted"><span data-i18n="estimateImages"></span> <span id="estimate">—</span></p>
-        <label data-i18n="labelPassword" for="save-pw"></label>
-        <input id="save-pw" type="password" autocomplete="new-password" />
+
+        <fieldset>
+          <legend data-i18n="keyModeHeading"></legend>
+          <label class="radio"
+            ><input type="radio" name="keymode" value="embedded" checked />
+            <span data-i18n="keyModeEmbedded"></span
+          ></label>
+          <label class="radio"
+            ><input type="radio" name="keymode" value="keyfile" />
+            <span data-i18n="keyModeKeyfile"></span
+          ></label>
+          <p class="muted" data-i18n="keyModeHelp"></p>
+        </fieldset>
+
+        <label class="checkbox"
+          ><input id="add-band" type="checkbox" /> <span data-i18n="labelAddBand"></span
+        ></label>
+        <div id="band-fields" hidden>
+          <label data-i18n="labelTitle" for="band-title"></label>
+          <input id="band-title" type="text" data-i18n-placeholder="titlePlaceholder" />
+          <p class="muted warn" data-i18n="bandWarning"></p>
+        </div>
+
         <button id="save-btn" data-i18n="btnSave"></button>
         <p id="save-status" class="status" role="status"></p>
       </section>
 
       <hr />
 
-      <section>
+      <!-- Restore (independent of the managed key) -->
+      <section id="restore">
         <h2 data-i18n="restoreHeading"></h2>
         <label data-i18n="labelImages" for="restore-files"></label>
         <input id="restore-files" type="file" accept="image/*" multiple />
+        <label data-i18n="labelKeyFile" for="restore-key"></label>
+        <input id="restore-key" type="file" accept=".key" />
+        <p class="muted" data-i18n="keyFileHint"></p>
         <label data-i18n="labelPassword" for="restore-pw"></label>
         <input id="restore-pw" type="password" autocomplete="current-password" />
         <button id="restore-btn" data-i18n="btnRestore"></button>

@@ -11,4 +11,11 @@ export function localizeDom(root: ParentNode = document): void {
     const message = browser.i18n.getMessage(key);
     if (message) el.textContent = message;
   }
+  // Localize placeholders for inputs marked with data-i18n-placeholder.
+  for (const el of root.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]')) {
+    const key = el.dataset.i18nPlaceholder;
+    if (!key) continue;
+    const message = browser.i18n.getMessage(key);
+    if (message) el.placeholder = message;
+  }
 }

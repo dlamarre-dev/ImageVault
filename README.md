@@ -47,12 +47,15 @@ not stop restoration** as long as at least `k` images survive.
 
 ## Status
 
-🚧 **Early development — Phase 1 (offline core).** The full offline pipeline is
-implemented and tested: Argon2id KEK/DEK, AES-GCM, opportunistic gzip, Reed-Solomon
-erasure coding, the QR-grid image codec, the self-describing header, and the **Disk**
-destination (save a file as a set of PNG images, restore it — tolerating missing
-images). The on-image format is frozen in [SPEC.md](SPEC.md). Paper and Google Photos
-destinations, key modes, and full localization come in later phases.
+🚧 **Early development — Phase 2 (UX / managed key).** The offline pipeline is complete
+and tested: Argon2id KEK/DEK, AES-GCM, opportunistic gzip, Reed-Solomon erasure coding,
+the QR-grid image codec, the self-describing header, and the **Disk** destination (save
+a file as a set of PNG images, restore it — tolerating missing images). Phase 2 adds a
+**managed vault key** (create / unlock per session / change password / export / import /
+erase, in the options page), **key modes** (key embedded in the images, or a separate
+`.key` file), an optional **readable label band** on the images, and clear error
+messages. The on-image format is frozen in [SPEC.md](SPEC.md). The stego key mode, Paper
+and Google Photos destinations, and full localization come in later phases.
 
 ## Development
 

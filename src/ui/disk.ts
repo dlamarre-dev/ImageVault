@@ -12,37 +12,59 @@ import {
   CODEC_QR_GRID,
   decodeHeader,
   toHex,
+  type KeyMode,
+  type VaultKey,
 } from '@core';
-import { downloadBlob, fileToImageData, imageDataToPngBlob } from './image-io';
+import { downloadBlob, fileToImageData, imageWithLabelToPngBlob, type LabelBand } from './image-io';
+
+export interface SaveOptions {
+  keyMode: KeyMode;
+  /** When set, a readable title band is drawn above each image. */
+  label?: { title?: string; date?: string } | undefined;
+}
 
 /** Encode a file into a set of PNG images and download them. */
 export async function saveFileToDisk(
   file: File,
-  password: string,
-): Promise<{ imageCount: number; setId: string }> {
+  key: VaultKey,
+  options: SaveOptions,
+): Promise<{ imageCount: number; setId: string; keyMode: KeyMode }> {
   const content = new Uint8Array(await file.arrayBuffer());
-  const { imagePayloads, setId } = await exportVault(file.name, content, password, {
+  const { imagePayloads, setId, keyBlock, keyMode } = await exportVault(file.name, content, key, {
     profile: PROFILE_DISK,
+    keyMode: options.keyMode,
   });
   const codec = getCodec(decodeHeader(imagePayloads[0]!).codecId);
   const setHex = toHex(setId);
 
   for (let i = 0; i < imagePayloads.length; i++) {
     const img = codec.encode(imagePayloads[i]!, PROFILE_DISK);
-    const blob = await imageDataToPngBlob(img);
+    const band: LabelBand | undefined = options.label
+      ? { ...options.label, index: i + 1, total: imagePayloads.length }
+      : undefined;
+    const blob = await imageWithLabelToPngBlob(img, band);
     const index = String(i + 1).padStart(2, '0');
     downloadBlob(blob, `imagevault-${setHex}-${index}.png`);
     // Space out downloads so the browser does not batch-block them.
     await new Promise((r) => setTimeout(r, 150));
   }
 
-  return { imageCount: imagePayloads.length, setId: setHex };
+  // For keyfile/stego modes the key block is not in the images — save it too.
+  if (keyMode !== 'embedded') {
+    downloadBlob(new Blob([keyBlock as BufferSource]), `imagevault-${setHex}.key`);
+  }
+
+  return { imageCount: imagePayloads.length, setId: setHex, keyMode };
 }
 
-/** Reconstruct the original file from a set of image files and download it. */
+/**
+ * Reconstruct the original file from a set of image files and download it.
+ * `keyFile` is required for image sets saved in keyfile/stego mode.
+ */
 export async function restoreFileFromDisk(
   files: File[],
   password: string,
+  keyFile?: File,
 ): Promise<{ filename: string }> {
   const codec = getCodec(CODEC_QR_GRID);
   const payloads: Uint8Array[] = [];
@@ -56,7 +78,8 @@ export async function restoreFileFromDisk(
   }
   if (payloads.length === 0) throw new Error('restore: no readable images found');
 
-  const { filename, content } = await importVault(payloads, password);
+  const keyBlock = keyFile ? new Uint8Array(await keyFile.arrayBuffer()) : undefined;
+  const { filename, content } = await importVault(payloads, password, { keyBlock });
   downloadBlob(new Blob([content as BufferSource]), filename);
   return { filename };
 }

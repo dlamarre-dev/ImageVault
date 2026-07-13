@@ -83,3 +83,64 @@ hr {
 .status.error {
   color: #c0392b;
 }
+
+.panel.wide {
+  width: auto;
+  max-width: 560px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+fieldset {
+  border: 1px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 6px;
+  margin: 0.6rem 0;
+  padding: 0.5rem 0.75rem;
+}
+
+legend {
+  font-weight: 600;
+  padding: 0 0.35rem;
+}
+
+label.radio,
+label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 400;
+  margin: 0.3rem 0;
+}
+
+label.radio input,
+label.checkbox input {
+  width: auto;
+}
+
+.warn {
+  color: #b9770e;
+}
+
+button.linklike {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font-weight: 400;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+button.danger {
+  color: #fff;
+  background: #c0392b;
+  border: 1px solid #a93226;
+}
