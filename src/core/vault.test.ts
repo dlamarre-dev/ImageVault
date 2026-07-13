@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { type Argon2Params } from './crypto';
+import { type Argon2Params, WrongPasswordError } from './crypto';
 import {
   MAX_FILE_BYTES,
   estimateImageCount,
@@ -63,12 +63,12 @@ describe('vault export/import round-trip (byte level)', () => {
     await expect(importVault(tooFew, 'pw')).rejects.toBeTruthy();
   });
 
-  it('rejects a wrong password', async () => {
+  it('rejects a wrong password with a typed error', async () => {
     const content = new TextEncoder().encode('secret');
     const { imagePayloads } = await exportVault('s.txt', content, 'right', {
       argon2Params: TEST_PARAMS,
     });
-    await expect(importVault(imagePayloads, 'wrong')).rejects.toBeTruthy();
+    await expect(importVault(imagePayloads, 'wrong')).rejects.toBeInstanceOf(WrongPasswordError);
   });
 
   it('enforces the hard file-size limit', async () => {

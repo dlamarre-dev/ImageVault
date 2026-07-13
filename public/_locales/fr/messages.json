@@ -80,5 +80,9 @@
   "errNoPassword": {
     "message": "Saisissez un mot de passe.",
     "description": "Popup: validation error."
+  },
+  "errWrongPassword": {
+    "message": "Mot de passe incorrect. Réessayez.",
+    "description": "Popup: shown when restore fails to unlock the vault."
   }
 }

@@ -201,10 +201,23 @@ export async function createKeyBlock(
   return { dek, block: { salt, params, iv, wrapped } };
 }
 
+/** Thrown when the DEK cannot be unwrapped — almost always a wrong password. */
+export class WrongPasswordError extends Error {
+  constructor() {
+    super('wrong password');
+    this.name = 'WrongPasswordError';
+  }
+}
+
 /** Recover the DEK from a key block and password. Throws on a wrong password. */
 export async function unlockKeyBlock(block: KeyBlock, password: string): Promise<CryptoKey> {
   const kek = await deriveKEK(password, block.salt, block.params);
-  return unwrapDEK(block.wrapped, block.iv, kek);
+  try {
+    // AES-GCM authenticates the wrapped DEK, so a wrong password fails here.
+    return await unwrapDEK(block.wrapped, block.iv, kek);
+  } catch {
+    throw new WrongPasswordError();
+  }
 }
 
 /** Change the password: re-wrap the *same* DEK under a new password. */

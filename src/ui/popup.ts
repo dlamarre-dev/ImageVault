@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import { estimateImages } from '@core';
+import { estimateImages, WrongPasswordError } from '@core';
 import { localizeDom } from './i18n';
 import { restoreFileFromDisk, saveFileToDisk } from './disk';
 
@@ -73,7 +73,11 @@ restoreBtn.addEventListener('click', async () => {
     const { filename } = await restoreFileFromDisk(files, restorePw.value);
     setStatus(restoreStatus, msg('statusRestored', filename));
   } catch (err) {
-    setStatus(restoreStatus, String(err instanceof Error ? err.message : err), true);
+    const text =
+      err instanceof WrongPasswordError
+        ? msg('errWrongPassword')
+        : String(err instanceof Error ? err.message : err);
+    setStatus(restoreStatus, text, true);
   } finally {
     restoreBtn.disabled = false;
   }

@@ -8,6 +8,7 @@ import {
   rewrapKeyBlock,
   serializeKeyBlock,
   unlockKeyBlock,
+  WrongPasswordError,
 } from './crypto';
 
 // Cheap Argon2 params keep the suite fast; production uses DEFAULT_ARGON2.
@@ -48,9 +49,9 @@ describe('KEK/DEK unlock', () => {
     expect(dec(await decryptBytes(dek2, iv, ciphertext))).toBe('vault contents');
   });
 
-  it('rejects a wrong password', async () => {
+  it('rejects a wrong password with a typed error', async () => {
     const { block } = await createKeyBlock('right', TEST_PARAMS);
-    await expect(unlockKeyBlock(block, 'wrong')).rejects.toBeTruthy();
+    await expect(unlockKeyBlock(block, 'wrong')).rejects.toBeInstanceOf(WrongPasswordError);
   });
 });
 
