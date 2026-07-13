@@ -61,6 +61,10 @@
           <p class="muted warn" data-i18n="bandWarning"></p>
         </div>
 
+        <label class="checkbox"
+          ><input id="as-zip" type="checkbox" checked /> <span data-i18n="labelAsZip"></span
+        ></label>
+
         <button id="save-btn" data-i18n="btnSave"></button>
         <p id="save-status" class="status" role="status"></p>
       </section>
@@ -70,8 +74,8 @@
       <!-- Restore (independent of the managed key) -->
       <section id="restore">
         <h2 data-i18n="restoreHeading"></h2>
-        <label data-i18n="labelImages" for="restore-files"></label>
-        <input id="restore-files" type="file" accept="image/*" multiple />
+        <label data-i18n="labelImagesOrZip" for="restore-files"></label>
+        <input id="restore-files" type="file" accept="image/*,.zip" multiple />
         <label data-i18n="labelKeyFile" for="restore-key"></label>
         <input id="restore-key" type="file" accept=".key" />
         <p class="muted" data-i18n="keyFileHint"></p>

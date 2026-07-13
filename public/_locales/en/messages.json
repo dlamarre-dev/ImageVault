@@ -67,8 +67,16 @@
 
   "labelKeyFile": { "message": "Key file (.key)", "description": "Popup: key file input label." },
   "keyFileHint": {
-    "message": "Only needed for sets you saved as a separate .key file.",
+    "message": "Only needed for sets you saved as a separate .key file (skip if it is inside the .zip).",
     "description": "Popup: hint for the restore key file input."
+  },
+  "labelAsZip": {
+    "message": "Bundle everything into a single .zip",
+    "description": "Popup: toggle to download one zip instead of many files."
+  },
+  "labelImagesOrZip": {
+    "message": "Image files or a .zip",
+    "description": "Popup: restore input label (images or zip)."
   },
 
   "btnSave": { "message": "Encrypt & download images", "description": "Popup: save button." },

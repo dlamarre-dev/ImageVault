@@ -67,8 +67,16 @@
 
   "labelKeyFile": { "message": "Fichier clé (.key)", "description": "Popup: key file input label." },
   "keyFileHint": {
-    "message": "Requis seulement pour les jeux sauvegardés avec un fichier .key séparé.",
+    "message": "Requis seulement pour les jeux sauvegardés avec un fichier .key séparé (ignorez-le s'il est dans le .zip).",
     "description": "Popup: hint for the restore key file input."
+  },
+  "labelAsZip": {
+    "message": "Regrouper le tout dans un seul .zip",
+    "description": "Popup: toggle to download one zip instead of many files."
+  },
+  "labelImagesOrZip": {
+    "message": "Fichiers image ou un .zip",
+    "description": "Popup: restore input label (images or zip)."
   },
 
   "btnSave": { "message": "Chiffrer et télécharger les images", "description": "Popup: save button." },

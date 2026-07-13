@@ -2,7 +2,8 @@ import browser from 'webextension-polyfill';
 import { estimateImages, type KeyMode } from '@core';
 import { localizeDom } from './i18n';
 import { el, friendlyError, msg, setStatus, show } from './dom';
-import { currentSession, isKeySet, lock, unlock } from './keystore';
+import { getSession, isKeySet, lock, unlock } from './keystore';
+import { getPrefs, savePrefs } from './prefs';
 import { restoreFileFromDisk, saveFileToDisk } from './disk';
 
 localizeDom();
@@ -23,6 +24,7 @@ const lockBtn = el<HTMLButtonElement>('lock-btn');
 const addBand = el<HTMLInputElement>('add-band');
 const bandFields = el('band-fields');
 const bandTitle = el<HTMLInputElement>('band-title');
+const asZip = el<HTMLInputElement>('as-zip');
 
 const restoreFiles = el<HTMLInputElement>('restore-files');
 const restoreKey = el<HTMLInputElement>('restore-key');
@@ -35,13 +37,27 @@ function selectedKeyMode(): KeyMode {
   return (checked?.value as KeyMode) ?? 'embedded';
 }
 
+function setKeyMode(mode: KeyMode): void {
+  const radio = document.querySelector<HTMLInputElement>(`input[name="keymode"][value="${mode}"]`);
+  if (radio) radio.checked = true;
+}
+
+/** Restore the last non-sensitive choices so the popup feels persistent. */
+async function loadPrefs(): Promise<void> {
+  const prefs = await getPrefs();
+  setKeyMode(prefs.keyMode);
+  addBand.checked = prefs.addBand;
+  bandTitle.value = prefs.title;
+  asZip.checked = prefs.asZip;
+  show(bandFields, prefs.addBand);
+}
+
 /** Reflect the current key/session state in which section is visible. */
 async function refreshState(): Promise<void> {
-  const hasKey = await isKeySet();
-  const unlocked = currentSession() !== null;
+  const [hasKey, session] = await Promise.all([isKeySet(), getSession()]);
   show(noKeySection, !hasKey);
-  show(lockedSection, hasKey && !unlocked);
-  show(saveSection, hasKey && unlocked);
+  show(lockedSection, hasKey && !session);
+  show(saveSection, hasKey && session !== null);
 }
 
 function openOptions(): void {
@@ -66,11 +82,16 @@ unlockBtn.addEventListener('click', async () => {
 });
 
 lockBtn.addEventListener('click', async () => {
-  lock();
+  await lock();
   await refreshState();
 });
 
-addBand.addEventListener('change', () => show(bandFields, addBand.checked));
+addBand.addEventListener('change', () => {
+  show(bandFields, addBand.checked);
+  void savePrefs({ addBand: addBand.checked });
+});
+bandTitle.addEventListener('change', () => void savePrefs({ title: bandTitle.value }));
+asZip.addEventListener('change', () => void savePrefs({ asZip: asZip.checked }));
 
 async function updateEstimate(): Promise<void> {
   const file = saveFile.files?.[0];
@@ -90,11 +111,14 @@ async function updateEstimate(): Promise<void> {
 
 saveFile.addEventListener('change', updateEstimate);
 for (const radio of document.querySelectorAll('input[name="keymode"]')) {
-  radio.addEventListener('change', updateEstimate);
+  radio.addEventListener('change', () => {
+    void savePrefs({ keyMode: selectedKeyMode() });
+    void updateEstimate();
+  });
 }
 
 saveBtn.addEventListener('click', async () => {
-  const session = currentSession();
+  const session = await getSession();
   if (!session) return setStatus(saveStatus, msg('errLocked'), true);
   const file = saveFile.files?.[0];
   if (!file) return setStatus(saveStatus, msg('errNoFile'), true);
@@ -107,9 +131,13 @@ saveBtn.addEventListener('click', async () => {
   saveBtn.disabled = true;
   setStatus(saveStatus, msg('statusSaving'));
   try {
-    const { imageCount } = await saveFileToDisk(file, session, { keyMode, label });
-    const key = keyMode === 'embedded' ? 'statusSaved' : 'statusSavedKeyfile';
-    setStatus(saveStatus, msg(key, String(imageCount)));
+    const { imageCount } = await saveFileToDisk(file, session, {
+      keyMode,
+      label,
+      asZip: asZip.checked,
+    });
+    const statusKey = keyMode === 'embedded' ? 'statusSaved' : 'statusSavedKeyfile';
+    setStatus(saveStatus, msg(statusKey, String(imageCount)));
   } catch (err) {
     setStatus(saveStatus, friendlyError(err), true);
   } finally {
@@ -135,4 +163,5 @@ restoreBtn.addEventListener('click', async () => {
   }
 });
 
+void loadPrefs();
 void refreshState();

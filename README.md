@@ -54,8 +54,11 @@ a file as a set of PNG images, restore it — tolerating missing images). Phase 
 **managed vault key** (create / unlock per session / change password / export / import /
 erase, in the options page), **key modes** (key embedded in the images, or a separate
 `.key` file), an optional **readable label band** on the images, and clear error
-messages. The on-image format is frozen in [SPEC.md](SPEC.md). The stego key mode, Paper
-and Google Photos destinations, and full localization come in later phases.
+messages. The unlocked session persists across popup reopens (volatile, until the
+browser closes), and image sets can be saved and restored as a single **.zip**. The
+on-image format is frozen in [SPEC.md](SPEC.md). The Paper (printable PDF) and Google
+Photos destinations, the Python reference decoder, the stego key mode, and full
+localization come in later phases.
 
 ## Development
 

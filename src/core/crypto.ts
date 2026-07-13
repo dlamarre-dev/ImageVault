@@ -79,6 +79,19 @@ export async function generateDEK(): Promise<CryptoKey> {
   return subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
 }
 
+/** Export a DEK to raw bytes (for holding it in volatile session storage). */
+export async function exportDekRaw(dek: CryptoKey): Promise<Uint8Array> {
+  return new Uint8Array(await subtle.exportKey('raw', dek));
+}
+
+/** Re-import a raw DEK exported by exportDekRaw. */
+export function importDek(raw: Uint8Array): Promise<CryptoKey> {
+  return subtle.importKey('raw', raw as BufferSource, { name: 'AES-GCM' }, true, [
+    'encrypt',
+    'decrypt',
+  ]);
+}
+
 /** AES-GCM encrypt. Returns iv + ciphertext(+tag) separately. */
 export async function encryptBytes(
   key: CryptoKey,

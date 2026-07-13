@@ -4,6 +4,8 @@ import {
   createKeyBlock,
   decryptBytes,
   encryptBytes,
+  exportDekRaw,
+  importDek,
   parseKeyBlock,
   rewrapKeyBlock,
   serializeKeyBlock,
@@ -37,6 +39,17 @@ describe('AES-GCM content encryption', () => {
     const { iv, ciphertext } = await encryptBytes(dek, enc('secret'));
     ciphertext[0] = ciphertext[0]! ^ 0xff;
     await expect(decryptBytes(dek, iv, ciphertext)).rejects.toBeTruthy();
+  });
+});
+
+describe('DEK raw export/import (session storage)', () => {
+  it('round-trips a DEK through raw bytes and still decrypts', async () => {
+    const { dek } = await createKeyBlock('pw', TEST_PARAMS);
+    const { iv, ciphertext } = await encryptBytes(dek, enc('session data'));
+    const raw = await exportDekRaw(dek);
+    expect(raw.length).toBe(32);
+    const dek2 = await importDek(raw);
+    expect(dec(await decryptBytes(dek2, iv, ciphertext))).toBe('session data');
   });
 });
 
