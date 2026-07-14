@@ -20,5 +20,11 @@ export default defineConfig({
     outDir: resolve(__dirname, 'web-dist'),
     emptyOutDir: true,
     target: 'es2022',
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'src/web/index.html'),
+        privacy: resolve(__dirname, 'src/web/privacy.html'),
+      },
+    },
   },
 });

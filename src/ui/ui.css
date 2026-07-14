@@ -409,3 +409,11 @@ hr {
   color: var(--text);
   background: var(--surface-2);
 }
+
+.app-footer {
+  text-align: center;
+  margin-top: 28px;
+}
+.app-footer a {
+  color: var(--muted);
+}
