@@ -354,3 +354,54 @@ hr {
   border-top: 1px solid var(--border);
   margin: 22px 0;
 }
+
+/* --- Settings modal (native <dialog>) -------------------------------------- */
+.modal {
+  border: none;
+  padding: 0;
+  border-radius: 16px;
+  width: min(560px, calc(100% - 40px));
+  max-height: 86vh;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.modal::backdrop {
+  background: rgba(8, 12, 18, 0.55);
+  backdrop-filter: blur(2px);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h2 {
+  font-size: 1.1rem;
+}
+.modal-body {
+  padding: 16px 20px 22px;
+  overflow-y: auto;
+  max-height: calc(86vh - 62px);
+}
+/* Cards read as flat panels inside the modal. */
+.modal .card {
+  box-shadow: none;
+  padding: 16px;
+}
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 6px 9px;
+  border-radius: 8px;
+}
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}

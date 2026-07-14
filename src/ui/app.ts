@@ -8,6 +8,7 @@ import { restoreFileFromDisk, saveFileToDisk } from './disk';
 import { saveFileToPaper } from './paper';
 import { HAS_GOOGLE_PHOTOS } from './config';
 import { saveToPhotos } from './google-photos';
+import { wireKeyManager } from './keymanager';
 
 localizeDom();
 
@@ -58,14 +59,12 @@ function setRadio(name: string, value: string): void {
 /** Show the option controls that match the chosen destination. */
 function reflectDestination(): void {
   const dest = selectedDest();
-  const paper = dest === 'paper';
-  const cloud = dest === 'cloud';
   show(zipField, dest === 'disk');
-  show(paperFields, paper);
-  // The "add readable label" toggle is disk-only; paper pages and cloud albums
-  // use the title directly, so the title field is always available there.
-  show(addBandLabel, dest === 'disk');
-  show(bandFields, paper || cloud || addBand.checked);
+  show(paperFields, dest === 'paper');
+  // The label toggle is available for every destination; its title field shows
+  // only when the box is checked.
+  show(addBandLabel, true);
+  show(bandFields, addBand.checked);
 }
 
 // Reveal the Google Photos controls only when a client id is configured.
@@ -102,11 +101,21 @@ async function refreshState(): Promise<void> {
   setPill(!hasKey ? 'none' : session ? 'unlocked' : 'locked');
 }
 
-function openOptions(): void {
-  void browser.runtime.openOptionsPage();
+// Settings open as a centered modal over the dimmed app (native <dialog>).
+const settingsModal = el<HTMLDialogElement>('settings-modal');
+function openSettings(): void {
+  settingsModal.showModal();
 }
-el<HTMLButtonElement>('open-options').addEventListener('click', openOptions);
-el<HTMLButtonElement>('settings-btn').addEventListener('click', openOptions);
+el<HTMLButtonElement>('open-options').addEventListener('click', openSettings);
+el<HTMLButtonElement>('settings-btn').addEventListener('click', openSettings);
+el<HTMLButtonElement>('settings-close').addEventListener('click', () => settingsModal.close());
+// Click on the backdrop (outside the dialog box) closes it.
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) settingsModal.close();
+});
+// Reflect any key changes made in the modal once it closes.
+settingsModal.addEventListener('close', () => void refreshState());
+wireKeyManager(() => void refreshState());
 
 unlockBtn.addEventListener('click', async () => {
   if (!unlockPw.value) return setStatus(unlockStatus, msg('errNoPassword'), true);
@@ -189,7 +198,9 @@ saveBtn.addEventListener('click', async () => {
   const keyMode = selectedKeyMode();
   const dest = selectedDest();
   const date = new Date().toISOString().slice(0, 10);
-  const title = bandTitle.value.trim();
+  // The label checkbox governs whether a title is applied on every destination.
+  const useLabel = addBand.checked;
+  const title = useLabel ? bandTitle.value.trim() : '';
 
   saveBtn.disabled = true;
   setStatus(saveStatus, msg('statusSaving'));
@@ -212,7 +223,7 @@ saveBtn.addEventListener('click', async () => {
       });
       setStatus(saveStatus, msg('statusSavedPdf', String(imageCount)));
     } else {
-      const label = addBand.checked ? { title, date } : undefined;
+      const label = useLabel ? { title, date } : undefined;
       const { imageCount } = await saveFileToDisk(file, session, {
         keyMode,
         label,
