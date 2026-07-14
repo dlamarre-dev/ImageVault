@@ -62,9 +62,11 @@ A standalone **[Python reference decoder](python/README.md)** restores a vault w
 extension and runs in CI as a cross-implementation conformance test. An **optional Google
 Photos** destination (upload to a dedicated album, restore via the Picker API, Cloud
 profile) is available when a Google OAuth client id is configured in a local `.env` (see
-`.env.example`); it is a convenience, never the only copy. The on-image format is frozen
-in [SPEC.md](SPEC.md). Full localization (Phase 5) and cross-browser hardening + store
-submission (Phase 6), plus the optional stego key mode, come next.
+`.env.example`); it is a convenience, never the only copy. The UI is localized into 8
+languages (en, fr, it, de, es, pt, ja, zh_TW; see [docs/LOCALIZATION.md](docs/LOCALIZATION.md)).
+The on-image format is frozen in [SPEC.md](SPEC.md). Cross-browser hardening + store
+submission (Phase 6), the store-screenshot pipeline, and the optional stego key mode come
+next.
 
 ## Development
 
