@@ -6,7 +6,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'local/**'],
+    ignores: ['dist/**', 'web-dist/**', 'coverage/**', 'node_modules/**', 'local/**'],
   },
   js.configs.recommended,
   {

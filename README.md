@@ -84,7 +84,12 @@ npm run build       # build the Chrome/Edge extension into dist/
 npm run build:firefox
 ```
 
-Each target builds into its own directory. Load `dist/chrome/` as an unpacked extension
+Each target builds into its own directory. There is also a **standalone web app** (the offline core — Disk + Paper — with no
+install and nothing leaving your device), built with `npm run build:web` / `npm run
+dev:web` and deployed to GitHub Pages. It doubles as an extension-independent recovery
+tool.
+
+Load `dist/chrome/` as an unpacked extension
 (`chrome://extensions` → Developer mode → Load unpacked), or `dist/firefox/` in Firefox
 (`about:debugging` → This Firefox → Load Temporary Add-on → pick its `manifest.json`).
 

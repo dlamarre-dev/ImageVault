@@ -74,24 +74,28 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0; /* allow the text to truncate, not the logo */
 }
 
+/* The logo is the generated icon; keep it square and never let it distort or
+   shrink when the window gets narrow. */
 .logo {
-  display: grid;
-  place-items: center;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-  color: var(--accent-contrast);
-  font-weight: 800;
-  font-size: 15px;
-  letter-spacing: 0.5px;
+  flex: 0 0 auto;
+  display: block;
+  border-radius: 9px;
 }
 
 .brand-name {
   font-weight: 700;
   font-size: 1.05rem;
+}
+.brand-name,
+.brand-tag {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .brand-tag {
   font-size: 0.8rem;

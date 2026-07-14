@@ -10,7 +10,6 @@
  */
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
-import browser from 'webextension-polyfill';
 import {
   getCodec,
   exportVault,
@@ -139,7 +138,7 @@ function drawWrapped(
 }
 
 function instructionLangs(): InstructionCopy[] {
-  const ui = browser.i18n.getUILanguage().toLowerCase();
+  const ui = (navigator.language || 'en').toLowerCase();
   const primary = ui.startsWith('fr') ? INSTRUCTIONS.fr! : INSTRUCTIONS.en!;
   // Always include English as the durable fallback.
   return primary === INSTRUCTIONS.en ? [INSTRUCTIONS.en!] : [primary, INSTRUCTIONS.en!];

@@ -12,6 +12,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:firefox": "cross-env IMAGEVAULT_TARGET=firefox vite build",
+    "build:web": "tsc --noEmit && vite build --config vite.web.config.ts",
+    "dev:web": "vite --config vite.web.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -1,0 +1,24 @@
+import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+
+/**
+ * Build for the standalone web app (GitHub Pages). Reuses the same core and
+ * disk/paper flows as the extension. `base` targets the project Pages path
+ * (https://<user>.github.io/ImageVault/).
+ */
+export default defineConfig({
+  root: 'src/web',
+  base: '/ImageVault/',
+  publicDir: resolve(__dirname, 'public'),
+  resolve: {
+    alias: {
+      '@core': fileURLToPath(new URL('./src/core', import.meta.url)),
+    },
+  },
+  build: {
+    outDir: resolve(__dirname, 'web-dist'),
+    emptyOutDir: true,
+    target: 'es2022',
+  },
+});

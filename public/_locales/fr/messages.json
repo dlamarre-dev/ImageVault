@@ -15,6 +15,10 @@
   "extShortName": { "message": "ImageVault", "description": "Product name shown in the app header." },
   "pillLocked": { "message": "Verrouillé", "description": "Header status pill when the vault is locked." },
   "pillUnlocked": { "message": "Déverrouillé", "description": "Header status pill when the vault is unlocked." },
+  "webIntro": {
+    "message": "Une version web libre et open source — sans installation, sans compte, et rien ne quitte votre appareil. Sauvegardez un fichier en images ou restaurez-le. (Google Photos nécessite l'extension.)",
+    "description": "Intro banner on the web app."
+  },
 
   "unlockHeading": { "message": "Coffre", "description": "Popup: unlock section heading." },
   "unlockPrompt": {

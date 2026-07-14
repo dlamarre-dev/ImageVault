@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ImageVault — encrypt files into resilient images</title>
+    <meta
+      name="description"
+      content="Encrypt a file into robust, error-corrected images you can store on disk or print. Open source, offline, nothing leaves your device."
+    />
+    <link rel="icon" href="./icons/icon.svg" />
+    <link rel="stylesheet" href="../ui/ui.css" />
+  </head>
+  <body>
+    <header class="appbar">
+      <div class="brand">
+        <img class="logo" src="./icons/icon.svg" alt="" />
+        <div>
+          <div class="brand-name">ImageVault</div>
+          <div class="brand-tag muted" data-i18n="popupTagline"></div>
+        </div>
+      </div>
+      <div class="appbar-actions">
+        <a class="btn-ghost" href="https://github.com/dlamarre-dev/ImageVault">GitHub</a>
+      </div>
+    </header>
+
+    <main class="app">
+      <section class="card banner">
+        <p class="muted" data-i18n="webIntro"></p>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <div class="card-head"><h2 data-i18n="saveHeading"></h2></div>
+
+          <label data-i18n="labelFile" for="save-file"></label>
+          <input id="save-file" type="file" />
+          <p class="muted estimate-line">
+            <span data-i18n="estimateImages"></span> <span id="estimate" class="badge">—</span>
+          </p>
+
+          <label data-i18n="labelPassword" for="save-pw"></label>
+          <input id="save-pw" type="password" autocomplete="new-password" />
+
+          <fieldset>
+            <legend data-i18n="destHeading"></legend>
+            <label class="radio"
+              ><input type="radio" name="dest" value="disk" checked />
+              <span data-i18n="destDisk"></span
+            ></label>
+            <label class="radio"
+              ><input type="radio" name="dest" value="paper" />
+              <span data-i18n="destPaper"></span
+            ></label>
+          </fieldset>
+
+          <fieldset>
+            <legend data-i18n="keyModeHeading"></legend>
+            <label class="radio"
+              ><input type="radio" name="keymode" value="embedded" checked />
+              <span data-i18n="keyModeEmbedded"></span
+            ></label>
+            <label class="radio"
+              ><input type="radio" name="keymode" value="keyfile" />
+              <span data-i18n="keyModeKeyfile"></span
+            ></label>
+            <p class="muted" data-i18n="keyModeHelp"></p>
+          </fieldset>
+
+          <label class="checkbox"
+            ><input id="add-band" type="checkbox" /> <span data-i18n="labelAddBand"></span
+          ></label>
+          <div id="band-fields" hidden>
+            <label data-i18n="labelTitle" for="band-title"></label>
+            <input id="band-title" type="text" data-i18n-placeholder="titlePlaceholder" />
+            <p class="muted warn" data-i18n="bandWarning"></p>
+          </div>
+
+          <label id="zip-field" class="checkbox"
+            ><input id="as-zip" type="checkbox" checked /> <span data-i18n="labelAsZip"></span
+          ></label>
+
+          <div id="paper-fields" hidden>
+            <label class="checkbox"
+              ><input id="add-instructions" type="checkbox" />
+              <span data-i18n="labelInstructions"></span
+            ></label>
+            <label data-i18n="labelPasswordHint" for="pw-hint"></label>
+            <input id="pw-hint" type="text" />
+            <label data-i18n="labelKeyLocation" for="key-location"></label>
+            <input id="key-location" type="text" />
+            <p class="muted warn" data-i18n="paperCleartextWarn"></p>
+          </div>
+
+          <button id="save-btn" class="btn-primary" data-i18n="btnSave"></button>
+          <p id="save-status" class="status" role="status"></p>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2 data-i18n="restoreHeading"></h2></div>
+          <label data-i18n="labelImagesOrZip" for="restore-files"></label>
+          <input id="restore-files" type="file" accept="image/*,.zip" multiple />
+          <label data-i18n="labelKeyFile" for="restore-key"></label>
+          <input id="restore-key" type="file" accept=".key" />
+          <p class="muted" data-i18n="keyFileHint"></p>
+          <label data-i18n="labelPassword" for="restore-pw"></label>
+          <input id="restore-pw" type="password" autocomplete="current-password" />
+          <button id="restore-btn" class="btn-primary" data-i18n="btnRestore"></button>
+          <p id="restore-status" class="status" role="status"></p>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

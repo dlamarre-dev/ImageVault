@@ -56,13 +56,36 @@ Google Photos is opt-in and goes to the user's own account (see PRIVACY.md).
    (Node version, `npm ci`, `npm run build:firefox`) and a link to this public
    repo. `browser_specific_settings.gecko` is already set.
 
-## Google OAuth verification (only if shipping Google Photos publicly)
+## Google Photos: from "test users only" to everyone
 
-The `photoslibrary.appendonly` scope is **sensitive**. Until Google verifies the
-OAuth app, only accounts added as **test users** can use the Google Photos
-destination. For a public release, complete Google's OAuth verification
-(consent-screen review, possibly a security assessment). Disk and Paper need
-none of this — the extension is fully usable without Google Photos configured.
+By default the OAuth consent screen is in **Testing** mode, so only Google
+accounts you add as **test users** (up to 100) can use the Google Photos
+destination — perfect for development, but not for the public. To let *any* user
+use it, publish the consent screen and pass **OAuth verification**:
+
+1. **Prerequisites (host them first).** Google requires a public homepage and a
+   privacy policy on a domain you control. The GitHub Pages site provides both:
+   - Homepage: `https://dlamarre-dev.github.io/ImageVault/`
+   - Privacy policy: publish `docs/PRIVACY.md` as a page there and link it.
+   - Add that domain under **APIs & Services → OAuth consent screen →
+     Authorized domains**, and verify ownership in Google Search Console.
+2. **Complete the consent screen**: app name, logo (`public/icons/icon-128.png`),
+   support email, homepage, privacy policy URL, and authorized domains.
+3. **Justify the scopes**: explain that `photoslibrary.appendonly` uploads the
+   user's own encrypted images to their own account, and that
+   `photospicker.mediaitems.readonly` reads only images the user picks. Record a
+   short **demo video** of the OAuth flow (Google asks for one).
+4. **Publish** the consent screen (Testing → In production) and **submit for
+   verification**.
+
+`photoslibrary.appendonly` is a **sensitive** scope (not *restricted*), so it
+needs Google's consent-screen review but **not** a third-party CASA security
+assessment. Review typically takes a few days to a few weeks.
+
+Until verification completes, ship the extension with Google Photos usable by
+test users only, or leave the `IMAGEVAULT_GOOGLE_CLIENT_ID` unset in the store
+build so the destination is hidden. **Disk and Paper need none of this** — the
+extension (and the web app) are fully usable without Google Photos.
 
 ## Before 1.0
 
