@@ -57,6 +57,36 @@ Google Photos is opt-in and goes to the user's own account (see PRIVACY.md).
 
 ## Google Photos: from "test users only" to everyone
 
+> **Status (deferred): the public launch ships WITHOUT Google Photos.** The
+> `npm run package` build uses `--mode store` (empty `IMAGEVAULT_GOOGLE_CLIENT_ID`
+> via `.env.store`), which hides the Google Photos destination and omits its
+> optional permissions from the manifest. Disk, Paper, ZIP, and the web app are
+> fully public and need none of this.
+>
+> **Why deferred:** Google OAuth verification requires the consent-screen
+> homepage to be on a domain **registered to you**. The GitHub Pages domain
+> (`dlamarre-dev.github.io`) is GitHub's, so Google rejects it
+> ("the website ... is not registered to your name") even though Search Console
+> verified the URL. Enabling Google Photos publicly therefore needs a
+> **custom domain** — worth doing once the project has some traction.
+>
+> **To resume later (custom-domain path):**
+> 1. Buy a domain (or use one you own) and set it as the GitHub Pages **custom
+>    domain** (add a `CNAME` file to the deployed site and the DNS records;
+>    change the web build's `base` from `/ImageVault/` to `/`).
+> 2. Verify it in Search Console as a **Domain** property (DNS TXT record).
+> 3. Point the consent-screen homepage/privacy/terms URLs at the custom domain
+>    and set it as the **Authorized domain**.
+> 4. Rebuild the store package with the real client id (drop `--mode store`, or
+>    set `IMAGEVAULT_GOOGLE_CLIENT_ID` for that build) and resubmit for
+>    verification (steps below).
+>
+> Meanwhile you can keep using Google Photos yourself: your local `.env` has the
+> client id, so a personal `npm run build` includes it and your Google account
+> (a test user) works.
+
+The rest of this section is the full verification procedure for when you resume:
+
 By default the OAuth consent screen is in **Testing** mode, so only Google
 accounts you add as **test users** (up to 100) can use the Google Photos
 destination — perfect for development, but not for the public. To let *any* user

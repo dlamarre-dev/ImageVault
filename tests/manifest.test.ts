@@ -26,6 +26,12 @@ describe('buildManifest', () => {
     expect(m.optional_host_permissions).toContain('https://photoslibrary.googleapis.com/*');
   });
 
+  it('omits Google Photos permissions when the destination is disabled', () => {
+    const m = buildManifest('chrome', { googlePhotos: false });
+    expect(m).not.toHaveProperty('optional_permissions');
+    expect(m).not.toHaveProperty('optional_host_permissions');
+  });
+
   it('uses an event-page background and Gecko settings for Firefox', () => {
     const m = buildManifest('firefox');
     expect((m.background as { scripts: string[] }).scripts).toEqual(['background.js']);

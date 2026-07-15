@@ -20,7 +20,14 @@ const ICONS = {
   '128': 'icons/icon-128.png',
 };
 
-export function buildManifest(target: Target): Record<string, unknown> {
+export interface ManifestOptions {
+  /** Include the optional Google Photos permissions. Off for public store
+   *  builds where the destination is not configured. */
+  googlePhotos?: boolean;
+}
+
+export function buildManifest(target: Target, options: ManifestOptions = {}): Record<string, unknown> {
+  const googlePhotos = options.googlePhotos ?? true;
   const base: Record<string, unknown> = {
     manifest_version: 3,
     // Localized via _locales; keep the browser locale as default.
@@ -76,12 +83,16 @@ export function buildManifest(target: Target): Record<string, unknown> {
   // optional_permissions and its OAuth flow differs — revisited in Phase 4.
   return {
     ...base,
-    optional_permissions: ['identity'],
-    optional_host_permissions: [
-      'https://photoslibrary.googleapis.com/*',
-      'https://photospicker.googleapis.com/*',
-      'https://*.googleusercontent.com/*',
-    ],
+    ...(googlePhotos
+      ? {
+          optional_permissions: ['identity'],
+          optional_host_permissions: [
+            'https://photoslibrary.googleapis.com/*',
+            'https://photospicker.googleapis.com/*',
+            'https://*.googleusercontent.com/*',
+          ],
+        }
+      : {}),
     background: {
       service_worker: 'background.js',
       type: 'module',
