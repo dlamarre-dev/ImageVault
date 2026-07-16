@@ -107,6 +107,9 @@ def parse_key_block(data: bytes) -> KeyBlock:
     wrapped = data[44 : 44 + wrapped_len]
     if len(wrapped) != wrapped_len:
         raise ValueError("key block: truncated")
+    # Canonical encoding: exactly one byte sequence parses to a given block.
+    if len(data) != 44 + wrapped_len:
+        raise ValueError("key block: trailing bytes")
     # Reject attacker-controlled Argon2id parameters (DoS before authentication).
     for name, value in (
         ("iterations", iterations),

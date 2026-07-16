@@ -109,6 +109,18 @@ describe('keyfile mode (external key block)', () => {
 });
 
 describe('import robustness', () => {
+  it('detects a silently corrupted shard via the blob integrity check', async () => {
+    const key = await makeKey('pw');
+    const content = pseudoRandom(3000, 33);
+    const { imagePayloads } = await exportVault('a.bin', content, key);
+    // Corrupt one shard byte past the header: erasure coding only repairs
+    // MISSING shards, so with the full set present the corruption survives
+    // reconstruction and must be caught by the blob hash before decryption.
+    const corrupted = imagePayloads.map((p) => p.slice());
+    corrupted[0]![40] = corrupted[0]![40]! ^ 0xff;
+    await expect(importVault(corrupted, 'pw')).rejects.toThrow(/integrity/);
+  });
+
   it('ignores a foreign/corrupt image mixed into the set', async () => {
     const key = await makeKey('pw');
     const content = pseudoRandom(3000, 21);

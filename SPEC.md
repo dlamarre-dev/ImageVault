@@ -71,19 +71,19 @@ describes the whole set — there is no separate manifest image.
 
 ### Header (33 bytes, fixed)
 
-| Offset | Size | Field         | Notes                                        |
-| -----: | ---: | ------------- | -------------------------------------------- |
-|      0 |    4 | `MAGIC`       | ASCII `"IVLT"` = `49 56 4C 54`               |
-|      4 |    1 | `VERSION`     | format version, `1`                          |
-|      5 |    8 | `SET_ID`      | random per-vault identifier                  |
-|     13 |    2 | `SHARD_INDEX` | u16, global shard index `0 … k+m-1`          |
-|     15 |    2 | `K`           | u16, number of data shards                   |
-|     17 |    2 | `M`           | u16, number of parity shards                 |
-|     19 |    1 | `CODEC_ID`    | `0` = qr-grid                                |
-|     20 |    1 | `PROFILE`     | `0`=disk, `1`=cloud, `2`=paper               |
-|     21 |    4 | `SHARD_LEN`   | u32, bytes per shard (all shards equal)      |
-|     25 |    4 | `BLOB_LEN`    | u32, true length of the vault blob (§6)      |
-|     29 |    4 | `HASH_GLOBAL` | first 4 bytes of SHA-256(vault blob)         |
+| Offset | Size | Field         | Notes                                   |
+| -----: | ---: | ------------- | --------------------------------------- |
+|      0 |    4 | `MAGIC`       | ASCII `"IVLT"` = `49 56 4C 54`          |
+|      4 |    1 | `VERSION`     | format version, `1`                     |
+|      5 |    8 | `SET_ID`      | random per-vault identifier             |
+|     13 |    2 | `SHARD_INDEX` | u16, global shard index `0 … k+m-1`     |
+|     15 |    2 | `K`           | u16, number of data shards              |
+|     17 |    2 | `M`           | u16, number of parity shards            |
+|     19 |    1 | `CODEC_ID`    | `0` = qr-grid                           |
+|     20 |    1 | `PROFILE`     | `0`=disk, `1`=cloud, `2`=paper          |
+|     21 |    4 | `SHARD_LEN`   | u32, bytes per shard (all shards equal) |
+|     25 |    4 | `BLOB_LEN`    | u32, true length of the vault blob (§6) |
+|     29 |    4 | `HASH_GLOBAL` | first 4 bytes of SHA-256(vault blob)    |
 
 The `shard` immediately follows the header and is exactly `SHARD_LEN` bytes.
 
@@ -125,10 +125,13 @@ Argon2id. The key block is self-contained and password-protected.
 
 ```
 [ MAGIC 4 = "IVKY" = 49 56 4B 59 ][ VER 1 = 1 ]
-[ salt 16 ]
 [ iterations u32 ][ memoryKiB u32 ][ parallelism u8 ]      (Argon2id parameters)
+[ salt 16 ]
 [ wrapIv 12 ][ wrappedLen u16 ][ wrappedDEK (wrappedLen bytes) ]
 ```
+
+The encoding is **canonical**: a decoder MUST reject a key block with trailing
+bytes after `wrappedDEK` (exactly `44 + wrappedLen` bytes total).
 
 - **KDF:** Argon2id, `hashLength = 32` (the KEK is a 256-bit AES-GCM key).
   Parameters are stored in the block so any decoder can reproduce the derivation.
@@ -146,7 +149,7 @@ Where the key block travels is chosen per save:
 
 - **embedded** — the key block is stored in the vault blob (§6), i.e. inside the
   images. The images plus the password are self-sufficient. `KB_LEN > 0`.
-- **keyfile** — the key block is *not* in the images (`KB_LEN = 0`); it is saved
+- **keyfile** — the key block is _not_ in the images (`KB_LEN = 0`); it is saved
   separately as a **`.key` file** whose contents are exactly the serialized key
   block bytes of §5.1 (magic `"IVKY"`). Restore needs the images, the password,
   and this `.key` file. A leaked image then reveals nothing without the `.key`.
@@ -234,20 +237,20 @@ If fewer than `k` shards survive, reconstruction is impossible.
 
 ## 8. Constants summary
 
-| Name             | Value                                             |
-| ---------------- | ------------------------------------------------- |
-| `FORMAT_VERSION` | 1                                                 |
-| Header magic     | `"IVLT"`                                          |
-| Key block magic  | `"IVKY"`                                          |
-| Header length    | 33 bytes                                          |
-| Cipher           | AES-256-GCM, 12-byte IV, 16-byte tag              |
-| KDF              | Argon2id, 32-byte output, salt 16 bytes           |
-| KDF defaults     | iterations 3, memory 64 MiB, parallelism 1        |
-| GF polynomial    | `0x11D`, generator `0x02`                         |
-| Parity           | `m = max(ceil(k·0.3), 2)`                          |
+| Name             | Value                                                       |
+| ---------------- | ----------------------------------------------------------- |
+| `FORMAT_VERSION` | 1                                                           |
+| Header magic     | `"IVLT"`                                                    |
+| Key block magic  | `"IVKY"`                                                    |
+| Header length    | 33 bytes                                                    |
+| Cipher           | AES-256-GCM, 12-byte IV, 16-byte tag                        |
+| KDF              | Argon2id, 32-byte output, salt 16 bytes                     |
+| KDF defaults     | iterations 3, memory 64 MiB, parallelism 1                  |
+| GF polynomial    | `0x11D`, generator `0x02`                                   |
+| Parity           | `m = max(ceil(k·0.3), 2)`                                   |
 | Data per shard   | `capacity(profile) − 33` (Disk 2767, Cloud 1567, Paper 767) |
-| Limits           | file ≤ 256 KiB, images ≤ 150                       |
-| Compression      | gzip (RFC 1952), opportunistic                    |
+| Limits           | file ≤ 256 KiB, images ≤ 150                                |
+| Compression      | gzip (RFC 1952), opportunistic                              |
 
 ---
 
@@ -255,16 +258,16 @@ If fewer than `k` shards survive, reconstruction is impossible.
 
 The TypeScript core in `src/core/` is the reference encoder/decoder:
 
-| Concern            | Module                        |
-| ------------------ | ----------------------------- |
-| GF(2^8) arithmetic | `gf256.ts`                    |
+| Concern            | Module                          |
+| ------------------ | ------------------------------- |
+| GF(2^8) arithmetic | `gf256.ts`                      |
 | Reed-Solomon       | `reed-solomon.ts`, `erasure.ts` |
-| Crypto / key block | `crypto.ts`                   |
-| Compression        | `compress.ts`                 |
-| Payload envelope   | `payload.ts`                  |
-| Image header       | `header.ts`                   |
-| Vault blob & flow  | `vault.ts`                    |
-| QR-grid codec      | `codec/qr-grid.ts`            |
+| Crypto / key block | `crypto.ts`                     |
+| Compression        | `compress.ts`                   |
+| Payload envelope   | `payload.ts`                    |
+| Image header       | `header.ts`                     |
+| Vault blob & flow  | `vault.ts`                      |
+| QR-grid codec      | `codec/qr-grid.ts`              |
 
 A standalone **Python reference decoder** in `python/imagevault/` implements this
 same specification independently (GF(2^8) + Reed-Solomon, header, key block,
