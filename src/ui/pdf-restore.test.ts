@@ -24,6 +24,10 @@ import { extractPdfImages } from './pdf-restore';
 
 const codec = getCodec(CODEC_QR_GRID);
 
+// QR encode/decode of full pages is CPU-heavy and runs several times slower
+// under CI coverage instrumentation than locally — give these tests headroom.
+const SLOW = { timeout: 60_000 };
+
 function makePayload(len: number): Uint8Array {
   const header: Header = {
     version: 1,
@@ -52,7 +56,7 @@ function toPngBytes(img: { data: Uint8ClampedArray; width: number; height: numbe
 }
 
 describe('extractPdfImages', () => {
-  it('round-trips a paper-profile QR through an embedded PNG (our own PDFs)', async () => {
+  it('round-trips a paper-profile QR through an embedded PNG (our own PDFs)', SLOW, async () => {
     const payload = makePayload(500);
     const img = codec.encode(payload, PROFILE_PAPER);
 
@@ -76,43 +80,47 @@ describe('extractPdfImages', () => {
     expect([...decoded[0]!]).toEqual([...payload]);
   });
 
-  it('surfaces DCTDecode streams as JPEG bytes that still decode (scanner PDFs)', async () => {
-    const payload = makePayload(400);
-    const img = codec.encode(payload, PROFILE_PAPER);
-    const jpg = jpeg.encode(
-      {
-        data: Buffer.from(img.data.buffer, img.data.byteOffset, img.data.byteLength),
-        width: img.width,
-        height: img.height,
-      },
-      92,
-    );
+  it(
+    'surfaces DCTDecode streams as JPEG bytes that still decode (scanner PDFs)',
+    SLOW,
+    async () => {
+      const payload = makePayload(400);
+      const img = codec.encode(payload, PROFILE_PAPER);
+      const jpg = jpeg.encode(
+        {
+          data: Buffer.from(img.data.buffer, img.data.byteOffset, img.data.byteLength),
+          width: img.width,
+          height: img.height,
+        },
+        92,
+      );
 
-    const pdf = await PDFDocument.create();
-    const embedded = await pdf.embedJpg(new Uint8Array(jpg.data));
-    const page = pdf.addPage([595, 842]);
-    page.drawImage(embedded, { x: 40, y: 200, width: 515, height: 515 });
-    const bytes = await pdf.save();
+      const pdf = await PDFDocument.create();
+      const embedded = await pdf.embedJpg(new Uint8Array(jpg.data));
+      const page = pdf.addPage([595, 842]);
+      page.drawImage(embedded, { x: 40, y: 200, width: 515, height: 515 });
+      const bytes = await pdf.save();
 
-    const images = await extractPdfImages(new Uint8Array(bytes));
-    const jpegs = images.filter((i) => i.kind === 'jpeg');
-    expect(jpegs.length).toBe(1);
+      const images = await extractPdfImages(new Uint8Array(bytes));
+      const jpegs = images.filter((i) => i.kind === 'jpeg');
+      expect(jpegs.length).toBe(1);
 
-    // Prove the extracted JPEG still holds the payload (browser code hands
-    // these bytes to decodeImageBytes; here we decode with jpeg-js directly).
-    const raw = jpeg.decode(jpegs[0]!.kind === 'jpeg' ? jpegs[0]!.bytes : new Uint8Array(), {
-      useTArray: true,
-      formatAsRGBA: true,
-    });
-    const decoded = codec.decode({
-      data: new Uint8ClampedArray(raw.data),
-      width: raw.width,
-      height: raw.height,
-    });
-    expect([...decoded]).toEqual([...payload]);
-  });
+      // Prove the extracted JPEG still holds the payload (browser code hands
+      // these bytes to decodeImageBytes; here we decode with jpeg-js directly).
+      const raw = jpeg.decode(jpegs[0]!.kind === 'jpeg' ? jpegs[0]!.bytes : new Uint8Array(), {
+        useTArray: true,
+        formatAsRGBA: true,
+      });
+      const decoded = codec.decode({
+        data: new Uint8ClampedArray(raw.data),
+        width: raw.width,
+        height: raw.height,
+      });
+      expect([...decoded]).toEqual([...payload]);
+    },
+  );
 
-  it('rejects a non-PDF outright and skips undersized images', async () => {
+  it('rejects a non-PDF outright and skips undersized images', SLOW, async () => {
     await expect(extractPdfImages(new Uint8Array(64))).rejects.toBeTruthy();
 
     const pdf = await PDFDocument.create();
@@ -127,47 +135,51 @@ describe('extractPdfImages', () => {
 });
 
 describe('end-to-end: full vault through a PDF', () => {
-  it('exports a multi-page vault, embeds each page, and importVault restores it', async () => {
-    const { dek, block } = await createKeyBlock('paper pw', {
-      iterations: 1,
-      memoryKiB: 64,
-      parallelism: 1,
-    });
-    const key = { dek, keyBlock: serializeKeyBlock(block) };
-    let s = 7;
-    const content = Uint8Array.from({ length: 1500 }, () => {
-      s = (s * 1664525 + 1013904223) >>> 0;
-      return (s >>> 24) & 0xff;
-    });
-    const { imagePayloads } = await exportVault('deed.bin', content, key, {
-      profile: PROFILE_PAPER,
-    });
-    expect(imagePayloads.length).toBeGreaterThan(1);
+  it(
+    'exports a multi-page vault, embeds each page, and importVault restores it',
+    SLOW,
+    async () => {
+      const { dek, block } = await createKeyBlock('paper pw', {
+        iterations: 1,
+        memoryKiB: 64,
+        parallelism: 1,
+      });
+      const key = { dek, keyBlock: serializeKeyBlock(block) };
+      let s = 7;
+      const content = Uint8Array.from({ length: 1500 }, () => {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return (s >>> 24) & 0xff;
+      });
+      const { imagePayloads } = await exportVault('deed.bin', content, key, {
+        profile: PROFILE_PAPER,
+      });
+      expect(imagePayloads.length).toBeGreaterThan(1);
 
-    // Build the PDF the same way paper mode does: one embedded PNG per page.
-    const pdf = await PDFDocument.create();
-    for (const payload of imagePayloads) {
-      const img = codec.encode(payload, PROFILE_PAPER);
-      const png = await pdf.embedPng(toPngBytes(img));
-      const page = pdf.addPage([595, 842]);
-      page.drawImage(png, { x: 40, y: 200, width: 515, height: 515 });
-    }
-    const bytes = new Uint8Array(await pdf.save());
-
-    // Extraction + decode, exactly what extractPdfPayloads does in the browser.
-    const payloads: Uint8Array[] = [];
-    for (const image of await extractPdfImages(bytes)) {
-      if (image.kind !== 'pixels') continue;
-      try {
-        payloads.push(codec.decode(image.img));
-      } catch {
-        // SMask / non-QR image — skipped.
+      // Build the PDF the same way paper mode does: one embedded PNG per page.
+      const pdf = await PDFDocument.create();
+      for (const payload of imagePayloads) {
+        const img = codec.encode(payload, PROFILE_PAPER);
+        const png = await pdf.embedPng(toPngBytes(img));
+        const page = pdf.addPage([595, 842]);
+        page.drawImage(png, { x: 40, y: 200, width: 515, height: 515 });
       }
-    }
-    expect(payloads.length).toBe(imagePayloads.length);
+      const bytes = new Uint8Array(await pdf.save());
 
-    const out = await importVault(payloads, 'paper pw');
-    expect(out.filename).toBe('deed.bin');
-    expect([...out.content]).toEqual([...content]);
-  });
+      // Extraction + decode, exactly what extractPdfPayloads does in the browser.
+      const payloads: Uint8Array[] = [];
+      for (const image of await extractPdfImages(bytes)) {
+        if (image.kind !== 'pixels') continue;
+        try {
+          payloads.push(codec.decode(image.img));
+        } catch {
+          // SMask / non-QR image — skipped.
+        }
+      }
+      expect(payloads.length).toBe(imagePayloads.length);
+
+      const out = await importVault(payloads, 'paper pw');
+      expect(out.filename).toBe('deed.bin');
+      expect([...out.content]).toEqual([...content]);
+    },
+  );
 });
