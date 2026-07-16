@@ -556,6 +556,14 @@ hr {
   margin-top: 14px;
 }
 
+/* Freeze the page behind an open capture modal (set from camera.ts). The
+   native <dialog> backdrop dims the page but does not stop it scrolling,
+   especially on touch — lock both axes and touch gestures. */
+.scroll-locked {
+  overflow: hidden;
+  touch-action: none;
+}
+
 /* --- Camera capture (restore flow) ----------------------------------------- */
 .camera-btn {
   display: flex;
