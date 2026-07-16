@@ -97,6 +97,9 @@ export function wireCamera(ids: CameraElements, onChange: (count: number) => voi
     stream?.getTracks().forEach((t) => t.stop());
     stream = null;
     video.srcObject = null;
+    // Release the background-scroll lock (a native <dialog> backdrop does not
+    // stop the page behind it from scrolling, especially on mobile).
+    document.body.classList.remove('scroll-locked');
     if (modal.open) modal.close();
   };
 
@@ -118,6 +121,7 @@ export function wireCamera(ids: CameraElements, onChange: (count: number) => voi
     video.srcObject = stream;
     refreshCount();
     modal.showModal();
+    document.body.classList.add('scroll-locked'); // freeze the page behind
     timer = setInterval(scanFrame, SCAN_INTERVAL_MS);
   });
 
