@@ -38,6 +38,11 @@ def test_key_block_rejects_truncated():
         parse_key_block(b"\x00" * 10)
 
 
+def test_key_block_rejects_trailing_bytes():
+    with pytest.raises(ValueError, match="trailing"):
+        parse_key_block(_key_block(64 * 1024) + b"\x00")
+
+
 def test_header_rejects_out_of_range_km():
     header = (
         MAGIC

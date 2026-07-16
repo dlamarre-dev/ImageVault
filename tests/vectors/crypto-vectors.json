@@ -1,0 +1,164 @@
+{
+  "_comment": "Frozen cross-implementation vectors. Generated once by scripts/gen-vectors.ts; verified bit-for-bit by src/core/crypto.vectors.test.ts (hash-wasm + WebCrypto) and python/tests/test_vectors.py (argon2-cffi + cryptography). Do not regenerate casually.",
+  "argon2Version": 19,
+  "argon2id": [
+    {
+      "name": "basic-ascii",
+      "password": "correct horse battery staple",
+      "saltHex": "000102030405060708090a0b0c0d0e0f",
+      "iterations": 1,
+      "memoryKiB": 256,
+      "parallelism": 1,
+      "kekHex": "8b34e4a5888ab048e962c074a314d5454f4f25bd88abe8e3d021388672c1d1a4"
+    },
+    {
+      "name": "varied-params",
+      "password": "password",
+      "saltHex": "f0e1d2c3b4a5968778695a4b3c2d1e0f",
+      "iterations": 3,
+      "memoryKiB": 1024,
+      "parallelism": 2,
+      "kekHex": "3b690b63f5af828af06b161ae0e9ae3a50ced5f6384b1a98a816feca4e8675a5"
+    },
+    {
+      "name": "max-parallelism",
+      "password": "p4ssw0rd!",
+      "saltHex": "deadbeefdeadbeefdeadbeefdeadbeef",
+      "iterations": 2,
+      "memoryKiB": 512,
+      "parallelism": 4,
+      "kekHex": "7b7a80e0b4e37ef873dd690afba1b674eb11bd6057a7aca991d26848dbfc47f6"
+    },
+    {
+      "name": "unicode-nfc",
+      "password": "pâsswörd☕",
+      "saltHex": "101112131415161718191a1b1c1d1e1f",
+      "iterations": 1,
+      "memoryKiB": 256,
+      "parallelism": 1,
+      "kekHex": "292c5bac2c89d96ce72beccd13b3917e061225e12409ab712196aace5d5b75bf"
+    },
+    {
+      "name": "unicode-nfd",
+      "password": "pâsswörd☕",
+      "saltHex": "101112131415161718191a1b1c1d1e1f",
+      "iterations": 1,
+      "memoryKiB": 256,
+      "parallelism": 1,
+      "kekHex": "ca06f676cc5aa90a86f7774f044c86ef48b6c56bcad3e886a92479c938cabbea"
+    },
+    {
+      "name": "emoji",
+      "password": "🔑🐎🔋📎",
+      "saltHex": "202122232425262728292a2b2c2d2e2f",
+      "iterations": 1,
+      "memoryKiB": 256,
+      "parallelism": 1,
+      "kekHex": "c0833947cd8455f7cb7cd8a8f405b1692e7a8d690970888266f4dfdf2d380834"
+    },
+    {
+      "name": "embedded-nul",
+      "password": "pa\u0000ss",
+      "saltHex": "303132333435363738393a3b3c3d3e3f",
+      "iterations": 1,
+      "memoryKiB": 256,
+      "parallelism": 1,
+      "kekHex": "ea01282755081203292db846a3a494634e1253fe146d04a62dcfcf55dec4f086"
+    },
+    {
+      "name": "long-128-chars",
+      "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "saltHex": "404142434445464748494a4b4c4d4e4f",
+      "iterations": 1,
+      "memoryKiB": 256,
+      "parallelism": 1,
+      "kekHex": "bbd35908bd0098f281b268559b1b2777c8d88d6e6064c1cd6463061c6c264c48"
+    }
+  ],
+  "aesGcm": [
+    {
+      "name": "empty-plaintext",
+      "keyHex": "3c5e81b40c5ec68e04a3406c97d63cfbdc53ae88371a125121b5956143c0ee2d",
+      "ivHex": "3c7530bdb71e347886b2b41b",
+      "plaintextHex": "",
+      "ciphertextHex": "9fb30d99b1bc2775b7ad13379f475d11"
+    },
+    {
+      "name": "single-byte",
+      "keyHex": "3c8cdfc762dda36308c128ca8bbdb1e92a5b474e993a69765d97c8e9e1fc1b7c",
+      "ivHex": "3ca48ed00c9c114d8acf9c7a",
+      "plaintextHex": "a5",
+      "ciphertextHex": "7446105c9cdf1c4f2140ea49b69ae601a5"
+    },
+    {
+      "name": "one-block",
+      "keyHex": "3cbb3edab75c7f380dde10297fa425d87963e014fa5bc09b9979fa72803847cc",
+      "ivHex": "3dd2ede3621bee238fed84d8",
+      "plaintextHex": "3de99ced0cdb5c0d11fbf988738c9ac7",
+      "ciphertextHex": "76aa72ade8503627b90a51bbac1ad6a6711c840dac24b2deb541d0d81224c188"
+    },
+    {
+      "name": "non-block-multiple",
+      "keyHex": "3d014cf6b79acaf8930a6d376d7fd53eee6ec5bd0d0bc3d2f3ccc7bfee120b43",
+      "ivHex": "3d18fb00615939e21619e1e6",
+      "plaintextHex": "3d2faa090c19a7cd9828559561674a2c3d765e836f2b1af62faefa488d4e389201",
+      "ciphertextHex": "f7cb40b448bd44a9f1e181769c416dd3881e0a8e1d0dcd1c8227b5c9bfc09105fd43c98f08c5d26791c08e27d9fdf3f31f"
+    },
+    {
+      "name": "quarter-kib",
+      "keyHex": "3d465913b7d815b71a36c9455b5a84a4647aab6620bbc5094d20930c5cecceba",
+      "ivHex": "3d5d091c619884a29c453df4",
+      "plaintextHex": "3d75b8260c57f28c1e54b1a35042f992b282432c82db1d2d8902c695fb28fb09e442289ebedba878bfa6de0dee2741132a1ea3568e9c58f5f7d202df921c2479b0d5bbc847da8d92e6f2ea48ff68ffaec8860c9919db122d0e62cb784ffa016037c99b2c5c7dee260f772b27ec61fb078cb8a232e24531f1f693af25e5dd3475660165394671caa28c36ebe4356f3366ccf7fc403d085082a809330f1ce795117aa12a42e4e9d69a7ff46a186bf5d8b631cb26c912d9bb45f22bd0c4d33b2e310713717ca79979c3e13dd9c2365a4e88b9fda0b3dcef75c47826f335f9033f79f503320394bccff97f5e5e4750092e0eb39e5ccdab0633aaaeeafbb8936c3a2d",
+      "ciphertextHex": "3ddbc2bcf4adb1e02c7efd378cb8a552486b07a56475c1ddb33654d39f21633d922cf27a2f47785aa0edde41dd61fd453d21d1912047d8c94f6fd04c1487fe1415b470084973e38f8140017dd18300d3769e392e6963d35b1d7cc82aeacdd2fdd4b203495adf309b819a6f73be9816f51aec7b6f7bfc2bae16c4ebb30bb22254711fadeedfed1d090e8d84b02a3c4a7237e4e702caa4d00c24e0bf8d86b5de5d2966dc0fe483badc58370938410f868ffcdf189f86b21eb950b9c2d9821275184e207dca8dc5a195e44eb96ed46c88ef45af7629222f57cf5fb51be0d80f3ce34d0151a008d9a3ef8915004881580185c8267e7eb4e6e5279bd43e28e23d33f1111082e9e6cd36efc9b27028ec781ea2"
+    }
+  ],
+  "keyBlock": [
+    {
+      "name": "standard",
+      "password": "correct horse battery staple",
+      "blockHex": "49564b590100000001000001000146594a5e0764724161532b384c11d61f4670f968b223e02be3629fe70030fc55a5d6b546b43ce5b104b9575e621d90d2b1ddca62749f4419b17742f8549cc6d85f734c86d1f1a739295d7a250358",
+      "dekHex": "4687a8715de34f166571139640f84b0e54dcd61804f3c38ffc541dda0e1947d8",
+      "iterations": 1,
+      "memoryKiB": 256,
+      "parallelism": 1
+    },
+    {
+      "name": "unicode-password",
+      "password": "pâsswörd☕🔑",
+      "blockHex": "49564b5901000000020000020002469e587b07a2bd00e77f87453bec868546b60784b2622beb6a8efbf50030a62440cdbc183c23cc2d9225e0bde8c55c22bcebbbb82b4f707792df1ebbdf5aa5544e9fb56fabfbe3bb33b27c16309d",
+      "dekHex": "46cdb68d5c219ad6ec9d70a42fd3fb74c9e8bcc116a3c6c656a7e9277cf30a4f",
+      "iterations": 2,
+      "memoryKiB": 512,
+      "parallelism": 2
+    }
+  ],
+  "vaultBlob": [
+    {
+      "name": "embedded-raw-content",
+      "mode": "embedded",
+      "password": "vault password",
+      "blobHex": "005c49564b59010000000100000100015082721b58e9fbc9c221fe62f633e6335099212502a869b3442f731100303e35dee7b0efc46ef6ab1590882d890e629ea65fd2022eb21b366df336cb26b518d6b26a7ae3e15c9d4410ae59c1687650c8803857274689494d5b70fb4e2516cf7edd721ce3470641c74665443d4c8798acc8cde75f99509b6add8fb7cd5c1d4ec39a82e27d78930e81732d43fbcf5de419447893ef6a827687c3c26176d0e81bc1257775facf718cdec0ddddd1373d0cef5c330856c6b9bba098497533",
+      "keyBlockHex": "49564b59010000000100000100015082721b58e9fbc9c221fe62f633e6335099212502a869b3442f731100303e35dee7b0efc46ef6ab1590882d890e629ea65fd2022eb21b366df336cb26b518d6b26a7ae3e15c9d4410ae59c16876",
+      "filename": "seed-phrase.txt",
+      "contentHex": "506bc212ad298dde40128ab3fc3facbb565a1900be1b72967da0d9066c98dd0b08a7772cec92aadeb9028321defc7ed2de559a1ffdc696d87363248490960f86"
+    },
+    {
+      "name": "embedded-compressed-content",
+      "mode": "embedded",
+      "password": "vault password",
+      "blobHex": "005c49564b590100000001000001000150df2f4102e7b473cb5bcf1fde01d01050f6de4bada6235e4d6a43cf0030a5e9ff22ed92e7cc9ead79c2f77725ea76cbaae3003ecf8616ca89f68a7fc6c01c37824a51386a6b19d9fad657d7901751253d5e0225ff3352872b2db1cde75c278a07683ea27f4378468abbf1ac41fbe76cbefd318915ce628d9c30e45c3488a4d266c5b544a14321f90d979deb7b0afbcd",
+      "keyBlockHex": "49564b590100000001000001000150df2f4102e7b473cb5bcf1fde01d01050f6de4bada6235e4d6a43cf0030a5e9ff22ed92e7cc9ead79c2f77725ea76cbaae3003ecf8616ca89f68a7fc6c01c37824a51386a6b19d9fad657d79017",
+      "filename": "notes.txt",
+      "contentHex": "4141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141"
+    },
+    {
+      "name": "keyfile-external-key",
+      "mode": "keyfile",
+      "password": "keyfile password",
+      "blobHex": "000051b0589602a195b25fe0e4492a7221aea0d50fa8f5167aaf37c8116a1d4921f50e033e1f755f7433f51c6b7a59557d5a9edda65ae5fb016a0c3c522c1b6d98811e6f023d1114e33e37a0996f97207e7769a74bf7168955d7d8",
+      "keyBlockHex": "49564b5901000000010000010001516a4b7a02634af2d8b4883bbbb72fdc5181fa83ac22b9dd5ac2fcea00307cb7b601f3ee7219179d5409246dd6297280dedf967cdf3438041e040fa5f7a726ee6f8db91520f64012f17d95dfd298",
+      "filename": "wallet.dat",
+      "contentHex": "51539b7057a4dc0856a5148cc1c4f465de8016dea7bc264eaa0bd7b285c4bd99aab870677dcaa6550ce81bb1e8fa763d"
+    }
+  ]
+}

@@ -137,6 +137,9 @@ export async function decryptBytes(
   iv: Uint8Array,
   ciphertext: Uint8Array,
 ): Promise<Uint8Array> {
+  // GCM accepts any nonzero IV length, but this format only ever produces
+  // 12-byte IVs — reject anything else instead of silently diverging.
+  if (iv.length !== IV_LEN) throw new RangeError('decrypt: bad iv length');
   const pt = await subtle.decrypt(
     { name: 'AES-GCM', iv: iv as BufferSource },
     key,
@@ -227,6 +230,9 @@ export function parseKeyBlock(bytes: Uint8Array): KeyBlock {
   o += 2;
   const wrapped = bytes.slice(o, o + wrappedLen);
   if (wrapped.length !== wrappedLen) throw new Error('key block: truncated');
+  // Enforce a canonical encoding: exactly one byte sequence parses to a given
+  // block. Trailing bytes would otherwise ride along unauthenticated.
+  if (bytes.length !== o + wrappedLen) throw new Error('key block: trailing bytes');
   const params = { iterations, memoryKiB, parallelism };
   validateArgon2Params(params); // reject attacker-controlled DoS parameters
   return { salt, params, iv, wrapped };
@@ -256,9 +262,12 @@ export class WrongPasswordError extends Error {
 
 /** Recover the DEK from a key block and password. Throws on a wrong password. */
 export async function unlockKeyBlock(block: KeyBlock, password: string): Promise<CryptoKey> {
-  const kek = await deriveKEK(password, block.salt, block.params);
   try {
-    // AES-GCM authenticates the wrapped DEK, so a wrong password fails here.
+    // Derivation failures (e.g. the empty password, which Argon2 here rejects
+    // and which therefore can never have created a block) and GCM auth
+    // failures both surface as the same typed error: nothing about the cause
+    // is leaked, and callers get one uniform "wrong password" signal.
+    const kek = await deriveKEK(password, block.salt, block.params);
     return await unwrapDEK(block.wrapped, block.iv, kek);
   } catch {
     throw new WrongPasswordError();
