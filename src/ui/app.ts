@@ -14,7 +14,13 @@ import { localizeDom } from './i18n';
 import { el, friendlyError, msg, pick, setStatus, show, wireDropzone } from './dom';
 import { getSession, isKeySet, lock, unlock } from './keystore';
 import { type Destination, getPrefs, savePrefs } from './prefs';
-import { restoreFileFromDisk, saveFileToBinary, saveFileToDisk } from './disk';
+import {
+  restoreFileFromDisk,
+  restoreGalleryFromDisk,
+  saveFileToBinary,
+  saveFileToDisk,
+  saveGalleryToDisk,
+} from './disk';
 import { HAS_GOOGLE_PHOTOS } from './config';
 import { saveToPhotos } from './google-photos';
 import { wireKeyManager } from './keymanager';
@@ -390,6 +396,89 @@ restoreBtn.addEventListener('click', async () => {
 // flow — run the whole Photos restore in its own persistent tab.
 restorePhotosBtn.addEventListener('click', () => {
   void browser.tabs.create({ url: browser.runtime.getURL('ui/photos.html') });
+});
+
+// --- Gallery Mode (SPEC §9): its own password, independent of the managed key.
+
+const galleryFile = el<HTMLInputElement>('gallery-file');
+const galleryFileDrop = el('gallery-file-drop');
+const galleryFileName = el('gallery-file-name');
+const galleryCovers = el<HTMLInputElement>('gallery-covers');
+const galleryCoversDrop = el('gallery-covers-drop');
+const galleryCoversName = el('gallery-covers-name');
+const gallerySavePw = el<HTMLInputElement>('gallery-save-pw');
+const gallerySaveBtn = el<HTMLButtonElement>('gallery-save-btn');
+const gallerySaveStatus = el('gallery-save-status');
+const gallerySaveResult = el('gallery-save-result');
+const gallerySaveResultNote = el('gallery-save-result-note');
+
+const galleryRestoreFiles = el<HTMLInputElement>('gallery-restore-files');
+const galleryRestoreDrop = el('gallery-restore-drop');
+const galleryRestoreName = el('gallery-restore-name');
+const galleryRestorePw = el<HTMLInputElement>('gallery-restore-pw');
+const galleryRestoreBtn = el<HTMLButtonElement>('gallery-restore-btn');
+const galleryRestoreStatus = el('gallery-restore-status');
+const galleryRestoreResult = el('gallery-restore-result');
+const galleryRestoreResultNote = el('gallery-restore-result-note');
+
+/** Show a single filename, or a count when several files are picked. */
+function reflectFiles(drop: HTMLElement, chip: HTMLElement, input: HTMLInputElement): void {
+  const files = input.files ? Array.from(input.files) : [];
+  drop.classList.toggle('has-file', files.length > 0);
+  chip.textContent = files.length === 1 ? files[0]!.name : files.length ? String(files.length) : '';
+}
+
+wireDropzone(galleryFileDrop, galleryFile, () => {
+  reflectFile(galleryFileDrop, galleryFileName, galleryFile);
+  show(gallerySaveResult, false);
+});
+wireDropzone(galleryCoversDrop, galleryCovers, () =>
+  reflectFiles(galleryCoversDrop, galleryCoversName, galleryCovers),
+);
+wireDropzone(galleryRestoreDrop, galleryRestoreFiles, () =>
+  reflectFiles(galleryRestoreDrop, galleryRestoreName, galleryRestoreFiles),
+);
+
+gallerySaveBtn.addEventListener('click', async () => {
+  const file = galleryFile.files?.[0];
+  if (!file) return setStatus(gallerySaveStatus, msg('errNoFile'), true);
+  const covers = galleryCovers.files ? Array.from(galleryCovers.files) : [];
+  if (covers.length === 0) return setStatus(gallerySaveStatus, msg('errNoCovers'), true);
+  if (!gallerySavePw.value) return setStatus(gallerySaveStatus, msg('errNoPassword'), true);
+
+  gallerySaveBtn.disabled = true;
+  show(gallerySaveResult, false);
+  setStatus(gallerySaveStatus, msg('statusGallerySaving'));
+  try {
+    const res = await saveGalleryToDisk(file, covers, gallerySavePw.value);
+    setStatus(gallerySaveStatus, '');
+    gallerySaveResultNote.textContent = msg('statusGallerySaved', String(res.imageCount));
+    show(gallerySaveResult, true);
+  } catch (err) {
+    setStatus(gallerySaveStatus, friendlyError(err), true);
+  } finally {
+    gallerySaveBtn.disabled = false;
+  }
+});
+
+galleryRestoreBtn.addEventListener('click', async () => {
+  const files = galleryRestoreFiles.files ? Array.from(galleryRestoreFiles.files) : [];
+  if (files.length === 0) return setStatus(galleryRestoreStatus, msg('errNoImages'), true);
+  if (!galleryRestorePw.value) return setStatus(galleryRestoreStatus, msg('errNoPassword'), true);
+
+  galleryRestoreBtn.disabled = true;
+  show(galleryRestoreResult, false);
+  setStatus(galleryRestoreStatus, msg('statusGalleryRestoring'));
+  try {
+    const { filename } = await restoreGalleryFromDisk(files, galleryRestorePw.value);
+    setStatus(galleryRestoreStatus, '');
+    galleryRestoreResultNote.textContent = msg('statusRestored', filename);
+    show(galleryRestoreResult, true);
+  } catch (err) {
+    setStatus(galleryRestoreStatus, friendlyError(err), true);
+  } finally {
+    galleryRestoreBtn.disabled = false;
+  }
 });
 
 void loadPrefs();

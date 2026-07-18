@@ -5,6 +5,10 @@
 
 import {
   FileTooLargeError,
+  GalleryCoverCapacityError,
+  GalleryFileTooLargeError,
+  GalleryRestoreError,
+  GalleryTooFewImagesError,
   MissingKeyError,
   StegoCapacityError,
   StegoCoverFormatError,
@@ -30,6 +34,13 @@ export function friendlyError(
   if (err instanceof TooManyImagesError) {
     return translate('errTooManyImages', [String(err.count), String(err.limit)]);
   }
+  if (err instanceof GalleryTooFewImagesError)
+    return translate('errGalleryTooFew', String(err.needed));
+  if (err instanceof GalleryFileTooLargeError) return translate('errGalleryTooLarge');
+  if (err instanceof GalleryCoverCapacityError) {
+    return translate('errGalleryCoverTooSmall', err.coverName);
+  }
+  if (err instanceof GalleryRestoreError) return translate('errGalleryRestore');
   return errText(err);
 }
 

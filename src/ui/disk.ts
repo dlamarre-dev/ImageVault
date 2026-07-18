@@ -12,6 +12,8 @@ import {
   getCodec,
   exportVault,
   exportVaultBinary,
+  galleryDecode,
+  galleryEncode,
   importVault,
   importVaultBinary,
   MAX_IMAGES,
@@ -29,6 +31,8 @@ import {
   downloadBlob,
   embedKeyImage,
   extractKeyImage,
+  fileToGalleryCover,
+  galleryImageToBlob,
   imageWithLabelToPngBlob,
   stegoKeyName,
   type LabelBand,
@@ -164,6 +168,58 @@ export async function saveFileToBinary(
     );
   }
   return { keyMode, variant: options.variant };
+}
+
+export interface GallerySaveResult {
+  imageCount: number;
+  k: number;
+  m: number;
+  decoys: number;
+  setId: string;
+}
+
+/**
+ * Gallery Mode (SPEC §9): hide a secret fragmented across the given cover photos
+ * plus decoys, then download every (modified) photo individually — keeping each
+ * cover's own filename so the set blends into a photo library (no telltale zip).
+ */
+export async function saveGalleryToDisk(
+  secret: File,
+  covers: File[],
+  password: string,
+): Promise<GallerySaveResult> {
+  const content = new Uint8Array(await secret.arrayBuffer());
+  const galleryCovers = await Promise.all(covers.map(fileToGalleryCover));
+  const res = await galleryEncode(secret.name, content, password, galleryCovers);
+
+  // Two covers can share a basename, and gallery reuses cover names — disambiguate.
+  const used = new Set<string>();
+  for (const img of res.images) {
+    const { name, blob } = await galleryImageToBlob(img);
+    let unique = name;
+    for (let n = 2; used.has(unique); n++) unique = name.replace(/(\.[^.]+)?$/, `-${n}$1`);
+    used.add(unique);
+    downloadBlob(blob, unique);
+    await new Promise((r) => setTimeout(r, 150)); // avoid batch-blocking downloads
+  }
+  return {
+    imageCount: res.images.length,
+    k: res.k,
+    m: res.m,
+    decoys: res.decoys,
+    setId: toHex(res.setId),
+  };
+}
+
+/** Restore a secret from a set of gallery photos (blind winnowing) and download it. */
+export async function restoreGalleryFromDisk(
+  files: File[],
+  password: string,
+): Promise<{ filename: string }> {
+  const covers = await Promise.all(files.map(fileToGalleryCover));
+  const { filename, content } = await galleryDecode(covers, password);
+  downloadBlob(new Blob([content as BufferSource]), filename);
+  return { filename };
 }
 
 const isZip = (name: string) => name.toLowerCase().endsWith('.zip');

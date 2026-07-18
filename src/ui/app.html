@@ -274,6 +274,81 @@
             <p id="restore-result-note" class="result-note"></p>
           </div>
         </section>
+
+        <!-- Gallery Mode: independent of the managed key (its own password). -->
+        <section id="gallery-save" class="card">
+          <div class="card-head"><h2 data-i18n="galleryHeading"></h2></div>
+          <p class="muted" data-i18n="galleryIntro"></p>
+
+          <div id="gallery-file-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
+            <span class="dz-prompt">
+              <span class="dz-title" data-i18n="gallerySecretTitle"></span><br />
+              <span class="muted" data-i18n="dropPrompt"></span>
+            </span>
+            <span id="gallery-file-name" class="dz-file"></span>
+            <input id="gallery-file" type="file" />
+          </div>
+
+          <div id="gallery-covers-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
+            <span class="dz-prompt">
+              <span class="dz-title" data-i18n="galleryCoversTitle"></span><br />
+              <span class="muted" data-i18n="dropPrompt"></span>
+            </span>
+            <span id="gallery-covers-name" class="dz-file"></span>
+            <input id="gallery-covers" type="file" accept="image/png,image/jpeg" multiple />
+          </div>
+
+          <input
+            id="gallery-save-pw"
+            class="stack-gap"
+            type="password"
+            autocomplete="new-password"
+            data-i18n-placeholder="labelPassword"
+          />
+
+          <button
+            id="gallery-save-btn"
+            class="btn-primary btn-lg"
+            data-i18n="btnGallerySave"
+          ></button>
+          <p id="gallery-save-status" class="status" role="status"></p>
+          <div id="gallery-save-result" class="result" hidden>
+            <p class="result-title" data-i18n="savedTitle"></p>
+            <p id="gallery-save-result-note" class="result-note"></p>
+          </div>
+        </section>
+
+        <section id="gallery-restore" class="card">
+          <div class="card-head"><h2 data-i18n="galleryRestoreHeading"></h2></div>
+
+          <div id="gallery-restore-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
+            <span class="dz-prompt">
+              <span class="dz-title" data-i18n="galleryPhotosTitle"></span><br />
+              <span class="muted" data-i18n="dropPrompt"></span>
+            </span>
+            <span id="gallery-restore-name" class="dz-file"></span>
+            <input id="gallery-restore-files" type="file" accept="image/png,image/jpeg" multiple />
+          </div>
+
+          <input
+            id="gallery-restore-pw"
+            class="stack-gap"
+            type="password"
+            autocomplete="current-password"
+            data-i18n-placeholder="labelPassword"
+          />
+
+          <button
+            id="gallery-restore-btn"
+            class="btn-primary btn-lg"
+            data-i18n="btnGalleryRestore"
+          ></button>
+          <p id="gallery-restore-status" class="status" role="status"></p>
+          <div id="gallery-restore-result" class="result" hidden>
+            <p class="result-title" data-i18n="restoredTitle"></p>
+            <p id="gallery-restore-result-note" class="result-note"></p>
+          </div>
+        </section>
       </div>
 
       <footer class="app-footer muted">

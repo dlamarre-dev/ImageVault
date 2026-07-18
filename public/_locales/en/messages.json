@@ -567,5 +567,84 @@
         "content": "$1"
       }
     }
+  },
+  "galleryHeading": {
+    "message": "Gallery — hide across photos",
+    "description": "Gallery Mode: save card heading."
+  },
+  "galleryIntro": {
+    "message": "Split a small secret across several ordinary photos (plus decoys). Losing a few is fine; keep them together and remember your password.",
+    "description": "Gallery Mode: short explanation under the heading."
+  },
+  "gallerySecretTitle": {
+    "message": "File to hide",
+    "description": "Gallery Mode: label for the file-to-hide dropzone."
+  },
+  "galleryCoversTitle": {
+    "message": "Cover photos (5 or more)",
+    "description": "Gallery Mode: label for the cover-photos picker."
+  },
+  "galleryRestoreHeading": {
+    "message": "Gallery — restore from photos",
+    "description": "Gallery Mode: restore card heading."
+  },
+  "galleryPhotosTitle": {
+    "message": "The photos (a folder or selection)",
+    "description": "Gallery Mode: label for the restore photo picker."
+  },
+  "btnGallerySave": {
+    "message": "Hide across photos",
+    "description": "Gallery Mode: save button."
+  },
+  "btnGalleryRestore": {
+    "message": "Restore from photos",
+    "description": "Gallery Mode: restore button."
+  },
+  "statusGallerySaving": {
+    "message": "Hiding the secret across your photos…",
+    "description": "Gallery Mode: status while saving."
+  },
+  "statusGallerySaved": {
+    "message": "Saved across $COUNT$ photo(s). Keep them together and your password safe.",
+    "description": "Gallery Mode: status after saving.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusGalleryRestoring": {
+    "message": "Scanning photos and restoring…",
+    "description": "Gallery Mode: status while restoring."
+  },
+  "errNoCovers": {
+    "message": "Add the cover photos (5 or more).",
+    "description": "Gallery Mode validation: no cover photos chosen."
+  },
+  "errGalleryTooFew": {
+    "message": "Not enough photos — add at least $COUNT$.",
+    "description": "Gallery Mode error: not enough photos.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryTooLarge": {
+    "message": "That secret is too large for gallery mode; use a smaller file.",
+    "description": "Gallery Mode error: secret too large."
+  },
+  "errGalleryCoverTooSmall": {
+    "message": "The photo “$NAME$” is too small or too smooth to hide a fragment. Use larger, more detailed photos.",
+    "description": "Gallery Mode error: a cover photo lacks capacity.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryRestore": {
+    "message": "No secret could be restored from these photos (wrong password, or they aren't a gallery).",
+    "description": "Gallery Mode error: nothing restorable."
   }
 }

@@ -470,5 +470,84 @@
         "content": "$1"
       }
     }
+  },
+  "galleryHeading": {
+    "message": "Galleria — nascondere nelle foto",
+    "description": "Gallery Mode: save card heading."
+  },
+  "galleryIntro": {
+    "message": "Distribuisce un piccolo segreto su più foto ordinarie (con esche). Perderne alcune non è un problema; tienile insieme e ricorda la password.",
+    "description": "Gallery Mode: short explanation under the heading."
+  },
+  "gallerySecretTitle": {
+    "message": "File da nascondere",
+    "description": "Gallery Mode: label for the file-to-hide dropzone."
+  },
+  "galleryCoversTitle": {
+    "message": "Foto di copertura (5 o più)",
+    "description": "Gallery Mode: label for the cover-photos picker."
+  },
+  "galleryRestoreHeading": {
+    "message": "Galleria — ripristina dalle foto",
+    "description": "Gallery Mode: restore card heading."
+  },
+  "galleryPhotosTitle": {
+    "message": "Le foto (una cartella o una selezione)",
+    "description": "Gallery Mode: label for the restore photo picker."
+  },
+  "btnGallerySave": {
+    "message": "Nascondi nelle foto",
+    "description": "Gallery Mode: save button."
+  },
+  "btnGalleryRestore": {
+    "message": "Ripristina dalle foto",
+    "description": "Gallery Mode: restore button."
+  },
+  "statusGallerySaving": {
+    "message": "Occultamento del segreto nelle tue foto…",
+    "description": "Gallery Mode: status while saving."
+  },
+  "statusGallerySaved": {
+    "message": "Salvato in $COUNT$ foto. Tienile insieme e proteggi la password.",
+    "description": "Gallery Mode: status after saving.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusGalleryRestoring": {
+    "message": "Analisi delle foto e ripristino…",
+    "description": "Gallery Mode: status while restoring."
+  },
+  "errNoCovers": {
+    "message": "Aggiungi le foto di copertura (5 o più).",
+    "description": "Gallery Mode validation: no cover photos chosen."
+  },
+  "errGalleryTooFew": {
+    "message": "Foto insufficienti: aggiungine almeno $COUNT$.",
+    "description": "Gallery Mode error: not enough photos.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryTooLarge": {
+    "message": "Questo segreto è troppo grande per la modalità galleria; usa un file più piccolo.",
+    "description": "Gallery Mode error: secret too large."
+  },
+  "errGalleryCoverTooSmall": {
+    "message": "La foto «$NAME$» è troppo piccola o troppo uniforme per nascondere un frammento. Usa foto più grandi e dettagliate.",
+    "description": "Gallery Mode error: a cover photo lacks capacity.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryRestore": {
+    "message": "Impossibile ripristinare un segreto da queste foto (password errata o non sono una galleria).",
+    "description": "Gallery Mode error: nothing restorable."
   }
 }
