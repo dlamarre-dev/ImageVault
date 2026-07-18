@@ -6,6 +6,7 @@
 
 import {
   closeSync,
+  fstatSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -248,16 +249,20 @@ const isKeyFile = (n: string) => /\.key$/i.test(n);
 
 /** Peek a file's first bytes to see whether it is a binary container (SPEC §8). */
 function isBinaryContainerFile(path: string): boolean {
+  // Open once and inspect the descriptor (fstat), never re-resolving the path —
+  // avoids a check-then-use (TOCTOU) race between "is it a file?" and the read.
+  let fd: number | undefined;
   try {
-    if (!statSync(path).isFile()) return false;
-    const fd = openSync(path, 'r');
+    fd = openSync(path, 'r');
+    if (!fstatSync(fd).isFile()) return false;
     // Enough to cover the disguised variant's 100-byte SQLite header.
     const buf = Buffer.alloc(128);
     const n = readSync(fd, buf, 0, 128, 0);
-    closeSync(fd);
     return unwrapBinary(new Uint8Array(buf.subarray(0, n))) !== null;
   } catch {
     return false;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
   }
 }
 
