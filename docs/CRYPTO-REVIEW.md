@@ -247,6 +247,48 @@ real database. The **branded** variant makes no attempt to hide (it is
 self-labelling by design). Both are defense-in-depth on top of the
 password-wrapped key block, exactly like the stego carriers (§6a).
 
+## 6c. Gallery Mode (deniable multi-image distribution, SPEC §9)
+
+**Claim: a secret can be fragmented across many ordinary photos so that the set
+survives partial loss and each photo stays deniable, decoded blindly by
+trial-authentication.**
+
+Gallery Mode encrypts the secret into the standard vault blob (§6), Reed-Solomon-
+splits it into K data + M parity shards, and hides each shard in a distinct cover
+photo (PNG spatial LSB or baseline-JPEG DCT, reusing the §6a carriers and the
+`|coef| ≥ 2` size-invariance). Extra photos carry uniform random bytes as decoys.
+Three design points carry the security:
+
+1. **Per-fragment AEAD is what makes blind winnowing sound.** Each fragment is
+   its _own_ AES-256-GCM message — `nonce ‖ GCM(header ‖ shard ‖ pad)` — so on
+   restore every photo can be trial-opened independently. A failed tag (decoy,
+   recompressed/destroyed carrier, foreign image, or wrong password) is dropped
+   silently; survivors ≥ K reconstruct. (The user's original "encrypt once, then
+   decrypt each ciphertext shard" is not realizable — an RS shard is not an
+   independent ciphertext — and this per-fragment sealing is the correct reading.)
+
+2. **A fresh random 12-byte nonce is stored in each slot, never derived from the
+   shard index.** The gallery AEAD key is password-only (it must be, so decode is
+   blind), so an index-derived nonce would reuse a `(key, nonce)` pair across any
+   two galleries sharing a password — catastrophic for GCM. The in-slot random
+   nonce removes that dependency entirely.
+
+3. **Key separation by HKDF.** One `Argon2id(password, GALLERY_SALT)` seed is
+   HKDF-SHA256-split (domain-separated `info` labels) into a position-selection
+   key and the AEAD key, so the two jobs never share key bytes. `GALLERY_SALT`
+   ("StegoShard-gllry") is distinct from the §6a stego salt, so gallery carriers
+   never collide with the key-block stego. The gallery Argon2 cost is the frozen
+   default and is not stored (like §6a); the WebCrypto/TS and Python
+   implementations agree bit-for-bit — proven by the `gallery-png` / `gallery-jpeg`
+   conformance fixtures (TS encodes, Python `decode_gallery` restores).
+
+**Honest limit (amplified vs. §6a):** Gallery Mode modifies **every** selected
+photo, so an adversary who holds the untouched originals can diff each one — a
+stronger exposure than single-image stego, where only one cover is touched. As
+with all stego here, the deniability is against an adversary _without_ the
+originals; it is not a claim of indistinguishability to a forensic adversary who
+has them.
+
 ## 7. Known limitations and deliberate choices
 
 1. **Passwords are NFC-normalized before hashing.** `café` typed precomposed

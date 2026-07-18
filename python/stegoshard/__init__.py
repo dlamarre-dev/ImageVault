@@ -15,6 +15,8 @@ from typing import Any
 _LAZY = {
     "decode_vault": "pipeline",
     "decode_vault_binary": "pipeline",
+    "decode_gallery": "gallery",
+    "GalleryRestoreError": "gallery",
     "RestoredFile": "pipeline",
     "MissingKeyError": "pipeline",
     "WrongPasswordError": "crypto",

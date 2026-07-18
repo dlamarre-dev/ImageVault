@@ -108,6 +108,44 @@ def _gather(paths: list[str]) -> tuple[list[bytes], bytes | None]:
     return images, key_block
 
 
+def _gather_image_bytes(paths: list[str]) -> list[bytes]:
+    """Collect the raw bytes of every image file in the inputs (Gallery Mode)."""
+    images: list[bytes] = []
+    for path in paths:
+        if os.path.isdir(path):
+            for root, _dirs, files in os.walk(path):
+                for f in sorted(files):
+                    if _is_image(f):
+                        with open(os.path.join(root, f), "rb") as fh:
+                            images.append(fh.read())
+        elif _is_image(path):
+            with open(path, "rb") as fh:
+                images.append(fh.read())
+    return images
+
+
+def _restore_gallery(args: argparse.Namespace) -> int:
+    from .gallery import GalleryRestoreError, decode_gallery
+
+    images = _gather_image_bytes(args.inputs)
+    if not images:
+        print("no images found in the inputs", file=sys.stderr)
+        return 2
+    password = args.password or getpass.getpass("Password: ")
+    try:
+        restored = decode_gallery(images, password)
+    except GalleryRestoreError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    os.makedirs(args.out, exist_ok=True)
+    out_path = os.path.join(args.out, os.path.basename(restored.filename) or "restored.bin")
+    with open(out_path, "wb") as fh:
+        fh.write(restored.content)
+    print(f"restored {restored.filename} -> {out_path}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="StegoShard reference decoder")
     parser.add_argument(
@@ -116,7 +154,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--password", help="vault password (prompted if omitted)")
     parser.add_argument("--key", help="a .key file, stego image, or binary key container")
     parser.add_argument("--out", default=".", help="output directory (default: current)")
+    parser.add_argument(
+        "--gallery",
+        action="store_true",
+        help="restore a Gallery Mode secret hidden across the given photos (SPEC §9)",
+    )
     args = parser.parse_args(argv)
+
+    if args.gallery:
+        return _restore_gallery(args)
 
     # A binary container (SPEC §8) short-circuits the image pipeline.
     binary_vault = _find_binary_vault(args.inputs)

@@ -478,7 +478,8 @@ The TypeScript core in `src/core/` is the reference encoder/decoder:
 
 A standalone **Python reference decoder** in `python/stegoshard/` implements this
 same specification independently (GF(2^8) + Reed-Solomon, header, key block,
-Argon2id + AES-GCM, gzip, QR decode). It restores a vault without the extension
+Argon2id + AES-GCM, gzip, QR decode, deniable stego + Gallery Mode §9). It
+restores a vault without the extension
 and runs in CI as a cross-implementation conformance test: the extension encodes
 and renders fixtures, the Python decoder reads them back, and the two must agree.
 See `python/README.md`.

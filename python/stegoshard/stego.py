@@ -19,6 +19,14 @@ MIN_CAPACITY = PAYLOAD_BITS * 16
 
 # Fixed application salt: ASCII "StegoShard-stego" (exactly 16 bytes) (SPEC §5.3).
 STEGO_SALT = b"StegoShard-stego"
+# Fixed application salt for Gallery Mode: ASCII "StegoShard-gllry" (SPEC §9.1).
+GALLERY_SALT = b"StegoShard-gllry"
+
+
+def _keystream_from_seed(seed: bytes, length: int) -> bytes:
+    """AES-256-CTR keystream of `length` bytes from a 32-byte seed (counter 0)."""
+    encryptor = Cipher(algorithms.AES(seed), modes.CTR(b"\x00" * 16)).encryptor()
+    return encryptor.update(b"\x00" * length) + encryptor.finalize()
 
 
 def _keystream(password: str, length: int, iterations: int, memory_kib: int, parallelism: int) -> bytes:
@@ -33,8 +41,7 @@ def _keystream(password: str, length: int, iterations: int, memory_kib: int, par
         version=ARGON2_VERSION,
     )
     # AES-256-CTR over zero bytes, counter starting at 0 (matches WebCrypto).
-    encryptor = Cipher(algorithms.AES(seed), modes.CTR(b"\x00" * 16)).encryptor()
-    return encryptor.update(b"\x00" * length) + encryptor.finalize()
+    return _keystream_from_seed(seed, length)
 
 
 def _pick_positions(stream: bytes, offset: int, capacity: int, count: int) -> list[int]:
@@ -139,6 +146,56 @@ def extract_key_block_jpeg(
     if len(result) == KEY_BLOCK_LEN and result[:4] == KEY_MAGIC and result[4] == KEY_BLOCK_VERSION:
         return result
     return None
+
+
+# --- Variable-length payload stego (Gallery Mode, SPEC §9) -------------------
+#
+# Mirrors src/core/stego.ts extractBytesStego{Rgba,Jpeg}: same keyed carrier
+# selection as the key-block paths, but seeded by a raw 32-byte position key
+# (not a password), with no whitening and no magic — the caller authenticates
+# each extracted slot via its AEAD tag.
+
+
+def _position_stream_len(payload_bits: int) -> int:
+    return payload_bits * 8 + 4096
+
+
+def extract_bytes_rgba(rgba: bytes, width: int, height: int, seed: bytes, length: int) -> bytes | None:
+    """Read `length` bytes from an RGBA buffer at seed-derived LSBs, or None if too small."""
+    capacity = width * height * 3
+    bits = length * 8
+    if capacity < bits:
+        return None
+    stream = _keystream_from_seed(seed, _position_stream_len(bits))
+    positions = _pick_positions(stream, 0, capacity, bits)
+    out = bytearray(length)
+    for i, pos in enumerate(positions):
+        byte_index = (pos // 3) * 4 + (pos % 3)
+        if rgba[byte_index] & 1:
+            out[i >> 3] |= 1 << (7 - (i & 7))
+    return bytes(out)
+
+
+def extract_bytes_jpeg(jpeg_bytes: bytes, seed: bytes, length: int) -> bytes | None:
+    """Read `length` bytes from a baseline JPEG's DCT coefficients, or None."""
+    from .jpeg_coeff import JpegUnsupported, decode, eligible_coefficients
+
+    try:
+        carriers = eligible_coefficients(decode(jpeg_bytes))
+    except JpegUnsupported:
+        return None
+    capacity = len(carriers)
+    bits = length * 8
+    if capacity < bits:
+        return None
+    stream = _keystream_from_seed(seed, _position_stream_len(bits))
+    positions = _pick_positions(stream, 0, capacity, bits)
+    out = bytearray(length)
+    for i, pos in enumerate(positions):
+        block, k = carriers[pos]
+        if abs(block[k]) & 1:
+            out[i >> 3] |= 1 << (7 - (i & 7))
+    return bytes(out)
 
 
 def extract_key_block_from_image(

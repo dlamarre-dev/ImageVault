@@ -21,6 +21,7 @@ import {
   DEFAULT_ARGON2,
   embedKeyBlockStego,
   embedKeyBlockStegoJpeg,
+  galleryEncode,
   serializeKeyBlock,
   exportVault,
   exportVaultBinary,
@@ -28,6 +29,7 @@ import {
   decodeHeader,
   PROFILE_DISK,
   wrapBinary,
+  type GalleryCover,
   type KeyMode,
   type VaultKey,
 } from '../src/core/index';
@@ -64,9 +66,9 @@ async function makeKey(): Promise<VaultKey> {
 }
 
 /** A deterministic textured baseline JPEG (enough |coef|≥2 carriers for stego). */
-function makeJpegCover(w: number, h: number): Uint8Array {
+function makeJpegCover(w: number, h: number, seed = 0x5a5a5a5a): Uint8Array {
   const data = Buffer.alloc(w * h * 4);
-  let s = 0x5a5a5a5a >>> 0;
+  let s = seed >>> 0;
   for (let i = 0; i < w * h; i++) {
     s = (s * 1664525 + 1013904223) >>> 0;
     data[i * 4] = (s >>> 24) & 0xff;
@@ -75,6 +77,82 @@ function makeJpegCover(w: number, h: number): Uint8Array {
     data[i * 4 + 3] = 255;
   }
   return new Uint8Array(jpeg.encode({ data, width: w, height: h }, 85).data);
+}
+
+/** A deterministic noisy RGBA cover (ample RGB LSB capacity for a gallery slot). */
+function makeRgbaCover(w: number, h: number, seed: number): Uint8Array {
+  const rgba = new Uint8Array(w * h * 4);
+  let s = seed >>> 0;
+  for (let p = 0; p < w * h; p++) {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    rgba[p * 4] = (s >>> 24) & 0xff;
+    rgba[p * 4 + 1] = (s >>> 16) & 0xff;
+    rgba[p * 4 + 2] = (s >>> 8) & 0xff;
+    rgba[p * 4 + 3] = 255;
+  }
+  return rgba;
+}
+
+/** Gallery Mode fixture (SPEC §9): a secret fragmented + decoy-padded across
+ * photos, which the Python decoder must restore blindly. Uses the frozen default
+ * gallery Argon2 cost (not stored), so the decoder derives with those defaults. */
+async function generateGallery(name: string, coverJpeg: boolean): Promise<void> {
+  const dir = join(outRoot, name);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+
+  const covers: GalleryCover[] = [];
+  for (let i = 0; i < 8; i++) {
+    if (coverJpeg) {
+      covers.push({
+        kind: 'jpeg',
+        name: `cover-${i}.jpg`,
+        jpeg: makeJpegCover(256, 256, 0x100 + i),
+      });
+    } else {
+      covers.push({
+        kind: 'rgba',
+        name: `cover-${i}.png`,
+        rgba: makeRgbaCover(256, 256, 0x200 + i),
+        width: 256,
+        height: 256,
+      });
+    }
+  }
+
+  const res = await galleryEncode(FILENAME, content, PASSWORD, covers);
+  res.images.forEach((img, i) => {
+    const idx = String(i + 1).padStart(2, '0');
+    if (img.kind === 'jpeg') {
+      writeFileSync(join(dir, `photo-${idx}.jpg`), img.jpeg);
+    } else {
+      writePng(join(dir, `photo-${idx}.png`), {
+        data: new Uint8ClampedArray(img.rgba),
+        width: img.width,
+        height: img.height,
+      });
+    }
+  });
+  writeFileSync(join(dir, 'expected.bin'), content);
+  writeFileSync(
+    join(dir, 'manifest.json'),
+    JSON.stringify(
+      {
+        password: PASSWORD,
+        filename: FILENAME,
+        keyMode: 'gallery',
+        images: res.images.length,
+        k: res.k,
+        m: res.m,
+        decoys: res.decoys,
+      },
+      null,
+      2,
+    ),
+  );
+  console.log(
+    `fixture ${name}: gallery ${res.images.length} photo(s) (k=${res.k} m=${res.m} decoys=${res.decoys})`,
+  );
 }
 
 async function generate(
@@ -181,4 +259,6 @@ await generate('stego', 'stego', content);
 await generate('stego-jpeg', 'stego', content, true);
 await generateBinary('binary-branded', 'embedded', 'branded', content);
 await generateBinary('binary-disguised', 'keyfile', 'disguised', content);
+await generateGallery('gallery-png', false);
+await generateGallery('gallery-jpeg', true);
 console.log(`fixtures written to ${outRoot}`);

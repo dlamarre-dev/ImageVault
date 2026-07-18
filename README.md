@@ -119,6 +119,13 @@ npm run cli -- save notes.txt --paper --instructions --locale fr --out ./print
 # SQLite header so file-type triage reads it as an ordinary .db (SPEC §8).
 npm run cli -- save archive.zip --binary --disguise --out ./vault
 npm run cli -- restore ./vault/cache.db --out ./restored
+
+# Gallery Mode (SPEC §9): hide a small secret fragmented across a folder of
+# ordinary photos (plus decoys), Reed-Solomon-protected. The output photos look
+# unchanged; restore is blind — any photos that authenticate are used, and any K
+# fragments rebuild the secret. Needs 5+ photos (at least 2 become decoys).
+npm run cli -- gallery-save note.txt ./photos --out ./album
+npm run cli -- gallery-restore ./album --out ./restored
 ```
 
 Images and PDF are capped at 1 MB (a warning shows the resulting image count

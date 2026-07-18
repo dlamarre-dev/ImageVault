@@ -119,6 +119,54 @@ def test_stego_jpeg_key_image_round_trip():
     assert restored.content == expected
 
 
+def _gallery_photos(dir_name: str) -> tuple[dict, list[bytes], bytes]:
+    d = FIXTURES / dir_name
+    manifest = json.loads((d / "manifest.json").read_text())
+    images = [p.read_bytes() for p in sorted(d.glob("photo-*"))]
+    expected = (d / "expected.bin").read_bytes()
+    return manifest, images, expected
+
+
+def test_gallery_png_round_trip():
+    """A secret fragmented across PNG photos + decoys (TS encode) is restored
+    blindly by the Python decoder (SPEC §9)."""
+    from stegoshard import decode_gallery
+
+    manifest, images, expected = _gallery_photos("gallery-png")
+    restored = decode_gallery(images, manifest["password"])
+    assert restored.filename == manifest["filename"]
+    assert restored.content == expected
+
+
+def test_gallery_jpeg_round_trip():
+    """Same, but the fragments ride in baseline-JPEG DCT coefficients (SPEC §9)."""
+    from stegoshard import decode_gallery
+
+    manifest, images, expected = _gallery_photos("gallery-jpeg")
+    assert images[0][:2] == b"\xff\xd8"  # real JPEGs, not PNGs
+    restored = decode_gallery(images, manifest["password"])
+    assert restored.content == expected
+
+
+def test_gallery_wrong_password_is_rejected():
+    """A wrong password authenticates no fragment — indistinguishable from no gallery."""
+    from stegoshard import GalleryRestoreError, decode_gallery
+
+    _manifest, images, _expected = _gallery_photos("gallery-png")
+    with pytest.raises(GalleryRestoreError):
+        decode_gallery(images, "not the password")
+
+
+def test_gallery_tolerates_lost_photos():
+    """Reed-Solomon restores the secret even after some photos are dropped."""
+    from stegoshard import decode_gallery
+
+    manifest, images, expected = _gallery_photos("gallery-jpeg")
+    # Drop the first two photos (k=3, m=2 → any 3 of the 5 carriers suffice).
+    restored = decode_gallery(images[2:], manifest["password"])
+    assert restored.content == expected
+
+
 def test_binary_branded_round_trip():
     """A branded binary container (TS embed) restores via the reference decoder
     (SPEC §8)."""

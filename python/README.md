@@ -31,6 +31,10 @@ python -m stegoshard.decode page-01.png page-02.png page-03.png
 
 # Keyfile-mode sets need the separate .key (also auto-detected inside a zip/folder):
 python -m stegoshard.decode ./images/ --key stegoshard-abcd1234.key
+
+# Gallery Mode (SPEC §9): restore a secret fragmented across a folder of photos,
+# decoded blindly (decoys and foreign photos are ignored automatically):
+python -m stegoshard.decode ./album/ --gallery --out ./restored
 ```
 
 The password is prompted unless you pass `--password`. Restoring tolerates
@@ -39,12 +43,14 @@ downscaled automatically before decoding.
 
 ## Layout
 
-| File             | Responsibility                                    |
-| ---------------- | ------------------------------------------------- |
-| `gf256.py`       | GF(2^8) arithmetic (SPEC §7.1)                    |
-| `reedsolomon.py` | Cauchy-matrix erasure coding (SPEC §7)            |
-| `format.py`      | header, key block, vault blob, envelope (SPEC §3–6) |
-| `crypto.py`      | Argon2id KEK + AES-256-GCM (SPEC §5)              |
-| `qr.py`          | QR image → payload bytes                          |
-| `pipeline.py`    | images + password → restored file                |
-| `decode.py`      | command-line entry point                          |
+| File             | Responsibility                                              |
+| ---------------- | ----------------------------------------------------------- |
+| `gf256.py`       | GF(2^8) arithmetic (SPEC §7.1)                              |
+| `reedsolomon.py` | Cauchy-matrix erasure coding (SPEC §7)                      |
+| `format.py`      | header, key block, vault blob, envelope (SPEC §3–6)         |
+| `crypto.py`      | Argon2id KEK + AES-256-GCM (SPEC §5)                        |
+| `qr.py`          | QR image → payload bytes                                    |
+| `stego.py`       | deniable stego extraction (key block + gallery, SPEC §5/§9) |
+| `gallery.py`     | Gallery Mode blind decode (SPEC §9)                         |
+| `pipeline.py`    | images + password → restored file                           |
+| `decode.py`      | command-line entry point                                    |
