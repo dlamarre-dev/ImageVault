@@ -13,9 +13,9 @@ import {
   type GalleryImage,
   GALLERY_SLOT_BYTES,
   GalleryCoverCapacityError,
-  GalleryFileTooLargeError,
   GalleryRestoreError,
   GalleryTooFewImagesError,
+  GalleryTooManyImagesError,
   decode as decodeJpeg,
   galleryDecode,
   galleryEncode,
@@ -144,6 +144,22 @@ describe('gallery resilience', () => {
     const out = await galleryDecode(withNoise, 'pw', { params: FAST });
     expect(dec.decode(out.content)).toBe('ignore the noise');
   }, 30000);
+
+  it('a mid-capacity foreign photo is skipped, not fatal (keystream guard)', async () => {
+    const covers = [1, 2, 3, 4, 5].map((i) => jpegCover(`c${i}.jpg`, i));
+    const { images } = await galleryEncode('g.txt', enc.encode('guarded'), 'pw', covers, {
+      params: FAST,
+    });
+    // A foreign JPEG whose eligible-carrier count sits just above the slot size but
+    // below the 4x embedding margin (~17.9k carriers vs a 16.9k-bit slot). It once
+    // drained the position keystream and threw, aborting the whole restore; the
+    // capacity-margin guard on extraction must now skip it instead.
+    const foreign: GalleryCover = { kind: 'jpeg', name: 'foreign.jpg', jpeg: noisyJpeg(112, 112) };
+    const out = await galleryDecode([...(images as GalleryCover[]), foreign], 'pw', {
+      params: FAST,
+    });
+    expect(dec.decode(out.content)).toBe('guarded');
+  }, 30000);
 });
 
 describe('gallery deniability', () => {
@@ -245,7 +261,7 @@ describe('gallery guardrails', () => {
     }));
     await expect(
       galleryEncode('x', enc.encode('hi'), 'pw', covers, { params: FAST }),
-    ).rejects.toBeInstanceOf(GalleryFileTooLargeError);
+    ).rejects.toBeInstanceOf(GalleryTooManyImagesError);
   });
 
   it('rejects a cover without enough carriers', async () => {

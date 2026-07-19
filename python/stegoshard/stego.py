@@ -160,11 +160,18 @@ def _position_stream_len(payload_bits: int) -> int:
     return payload_bits * 8 + 4096
 
 
-def extract_bytes_rgba(rgba: bytes, width: int, height: int, seed: bytes, length: int) -> bytes | None:
-    """Read `length` bytes from an RGBA buffer at seed-derived LSBs, or None if too small."""
+def extract_bytes_rgba(
+    rgba: bytes, width: int, height: int, seed: bytes, length: int, margin: int = 1
+) -> bytes | None:
+    """Read `length` bytes from an RGBA buffer at seed-derived LSBs.
+
+    Returns None when the carrier count is below `length*8*margin` — the same
+    threshold embedding used, so a real carrier passes and a too-small image is
+    skipped instead of draining the position keystream (raising).
+    """
     capacity = width * height * 3
     bits = length * 8
-    if capacity < bits:
+    if capacity < bits * margin:
         return None
     stream = _keystream_from_seed(seed, _position_stream_len(bits))
     positions = _pick_positions(stream, 0, capacity, bits)
@@ -176,8 +183,14 @@ def extract_bytes_rgba(rgba: bytes, width: int, height: int, seed: bytes, length
     return bytes(out)
 
 
-def extract_bytes_jpeg(jpeg_bytes: bytes, seed: bytes, length: int) -> bytes | None:
-    """Read `length` bytes from a baseline JPEG's DCT coefficients, or None."""
+def extract_bytes_jpeg(
+    jpeg_bytes: bytes, seed: bytes, length: int, margin: int = 1
+) -> bytes | None:
+    """Read `length` bytes from a baseline JPEG's DCT coefficients, or None.
+
+    None when undecodable or when the carrier count is below `length*8*margin`
+    (matches embedding, so undersized/foreign images are skipped safely).
+    """
     from .jpeg_coeff import JpegUnsupported, decode, eligible_coefficients
 
     try:
@@ -186,7 +199,7 @@ def extract_bytes_jpeg(jpeg_bytes: bytes, seed: bytes, length: int) -> bytes | N
         return None
     capacity = len(carriers)
     bits = length * 8
-    if capacity < bits:
+    if capacity < bits * margin:
         return None
     stream = _keystream_from_seed(seed, _position_stream_len(bits))
     positions = _pick_positions(stream, 0, capacity, bits)

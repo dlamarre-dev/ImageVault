@@ -11,7 +11,7 @@ import {
   type KeyMode,
 } from '@core';
 import { localizeDom } from './i18n';
-import { el, friendlyError, msg, pick, setStatus, show, wireDropzone } from './dom';
+import { el, friendlyError, msg, pick, reflectFiles, setStatus, show, wireDropzone } from './dom';
 import { getSession, isKeySet, lock, unlock } from './keystore';
 import { type Destination, getPrefs, savePrefs } from './prefs';
 import {
@@ -420,13 +420,6 @@ const galleryRestoreBtn = el<HTMLButtonElement>('gallery-restore-btn');
 const galleryRestoreStatus = el('gallery-restore-status');
 const galleryRestoreResult = el('gallery-restore-result');
 const galleryRestoreResultNote = el('gallery-restore-result-note');
-
-/** Show a single filename, or a count when several files are picked. */
-function reflectFiles(drop: HTMLElement, chip: HTMLElement, input: HTMLInputElement): void {
-  const files = input.files ? Array.from(input.files) : [];
-  drop.classList.toggle('has-file', files.length > 0);
-  chip.textContent = files.length === 1 ? files[0]!.name : files.length ? String(files.length) : '';
-}
 
 wireDropzone(galleryFileDrop, galleryFile, () => {
   reflectFile(galleryFileDrop, galleryFileName, galleryFile);

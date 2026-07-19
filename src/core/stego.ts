@@ -353,17 +353,22 @@ function positionStreamLen(payloadBits: number): number {
   return payloadBits * 8 + 4096;
 }
 
-/** Embed `data` into an RGBA buffer in place at seed-derived LSBs (no whitening). */
+/**
+ * Embed `data` into an RGBA buffer in place at seed-derived LSBs (no whitening).
+ * `margin` requires the carrier count to exceed the payload by that factor — keeps
+ * embedding sparse AND guarantees `pickPositions` never drains the keystream.
+ */
 export async function embedBytesStegoRgba(
   rgba: Uint8Array | Uint8ClampedArray,
   width: number,
   height: number,
   data: Uint8Array,
   seed: Uint8Array,
+  margin = 1,
 ): Promise<void> {
   const capacity = capacityBits(width, height);
   const payloadBits = data.length * 8;
-  if (capacity < payloadBits) throw new StegoCapacityError(capacity);
+  if (capacity < payloadBits * margin) throw new StegoCapacityError(capacity);
 
   const stream = await keystreamFromSeed(seed, positionStreamLen(payloadBits));
   const positions = pickPositions(new StreamReader(stream), capacity, payloadBits);
@@ -375,17 +380,23 @@ export async function embedBytesStegoRgba(
   stream.fill(0);
 }
 
-/** Extract `length` bytes from an RGBA buffer at seed-derived LSBs. Null if too small. */
+/**
+ * Extract `length` bytes from an RGBA buffer at seed-derived LSBs. Returns null if
+ * the carrier count is below `length*8*margin` — the same threshold embedding used,
+ * so a real carrier always clears it and a too-small image is skipped (never drains
+ * the keystream).
+ */
 export async function extractBytesStegoRgba(
   rgba: Uint8Array | Uint8ClampedArray,
   width: number,
   height: number,
   seed: Uint8Array,
   length: number,
+  margin = 1,
 ): Promise<Uint8Array | null> {
   const capacity = capacityBits(width, height);
   const payloadBits = length * 8;
-  if (capacity < payloadBits) return null;
+  if (capacity < payloadBits * margin) return null;
 
   const stream = await keystreamFromSeed(seed, positionStreamLen(payloadBits));
   const positions = pickPositions(new StreamReader(stream), capacity, payloadBits);
@@ -406,11 +417,16 @@ export function jpegStegoCapacityBits(jpegBytes: Uint8Array): number {
   }
 }
 
-/** Embed `data` into a baseline JPEG's DCT coefficients (no whitening); returns new bytes. */
+/**
+ * Embed `data` into a baseline JPEG's DCT coefficients (no whitening); returns new
+ * bytes. `margin` requires the eligible-carrier count to exceed the payload by that
+ * factor (sparse embedding; also bounds `pickPositions`' keystream use).
+ */
 export async function embedBytesStegoJpeg(
   jpegBytes: Uint8Array,
   data: Uint8Array,
   seed: Uint8Array,
+  margin = 1,
 ): Promise<Uint8Array> {
   const model = decodeJpeg(jpegBytes); // throws JpegUnsupportedError if not baseline
   const payloadBits = data.length * 8;
@@ -419,7 +435,7 @@ export async function embedBytesStegoJpeg(
 
   if (model.restartInterval === 0) {
     const carriers = eligibleInPlace(model);
-    if (carriers.count < payloadBits) throw new StegoCapacityError(carriers.count);
+    if (carriers.count < payloadBits * margin) throw new StegoCapacityError(carriers.count);
     const positions = pickPositions(new StreamReader(stream), carriers.count, payloadBits);
     const toggles: number[] = [];
     for (let i = 0; i < payloadBits; i++) {
@@ -431,18 +447,23 @@ export async function embedBytesStegoJpeg(
   }
 
   const carriers = eligibleCoefficients(model);
-  if (carriers.count < payloadBits) throw new StegoCapacityError(carriers.count);
+  if (carriers.count < payloadBits * margin) throw new StegoCapacityError(carriers.count);
   const positions = pickPositions(new StreamReader(stream), carriers.count, payloadBits);
   for (let i = 0; i < payloadBits; i++) carriers.setLsb(positions[i]!, bitAt(i));
   stream.fill(0);
   return encodeJpeg(model);
 }
 
-/** Extract `length` bytes from a baseline JPEG's coefficients. Null if undecodable/too small. */
+/**
+ * Extract `length` bytes from a baseline JPEG's coefficients. Returns null if
+ * undecodable or if the carrier count is below `length*8*margin` (same threshold
+ * as embedding, so real carriers pass and undersized images are skipped safely).
+ */
 export async function extractBytesStegoJpeg(
   jpegBytes: Uint8Array,
   seed: Uint8Array,
   length: number,
+  margin = 1,
 ): Promise<Uint8Array | null> {
   let carriers: ReturnType<typeof eligibleCoefficients>;
   try {
@@ -451,7 +472,7 @@ export async function extractBytesStegoJpeg(
     return null;
   }
   const payloadBits = length * 8;
-  if (carriers.count < payloadBits) return null;
+  if (carriers.count < payloadBits * margin) return null;
 
   const stream = await keystreamFromSeed(seed, positionStreamLen(payloadBits));
   const positions = pickPositions(new StreamReader(stream), carriers.count, payloadBits);

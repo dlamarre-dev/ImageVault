@@ -15,7 +15,7 @@ import {
   type KeyMode,
   type VaultKey,
 } from '@core';
-import { el, pick, setStatus, show, wireDropzone } from '../ui/domhelpers';
+import { el, pick, reflectFiles, setStatus, show, wireDropzone } from '../ui/domhelpers';
 import {
   saveFileToDisk,
   restoreFileFromDisk,
@@ -274,13 +274,6 @@ const galleryRestoreBtn = el<HTMLButtonElement>('gallery-restore-btn');
 const galleryRestoreStatus = el('gallery-restore-status');
 const galleryRestoreResult = el('gallery-restore-result');
 const galleryRestoreResultNote = el('gallery-restore-result-note');
-
-/** Show a single filename, or a count when several files are picked. */
-function reflectFiles(drop: HTMLElement, chip: HTMLElement, input: HTMLInputElement): void {
-  const files = input.files ? Array.from(input.files) : [];
-  drop.classList.toggle('has-file', files.length > 0);
-  chip.textContent = files.length === 1 ? files[0]!.name : files.length ? String(files.length) : '';
-}
 
 wireDropzone(galleryFileDrop, galleryFile, () => {
   reflectFile(galleryFileDrop, galleryFileName, galleryFile);

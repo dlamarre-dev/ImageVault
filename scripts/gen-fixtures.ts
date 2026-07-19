@@ -133,6 +133,12 @@ async function generateGallery(name: string, coverJpeg: boolean): Promise<void> 
       });
     }
   });
+  if (coverJpeg) {
+    // A foreign JPEG (not part of the gallery) whose eligible-carrier count sits
+    // just above the slot size but below the 4x margin — the case that used to
+    // drain the position keystream. The decoder must skip it, not abort.
+    writeFileSync(join(dir, 'foreign.jpg'), makeJpegCover(112, 112, 0x333));
+  }
   writeFileSync(join(dir, 'expected.bin'), content);
   writeFileSync(
     join(dir, 'manifest.json'),

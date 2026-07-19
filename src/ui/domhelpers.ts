@@ -59,6 +59,13 @@ export function setStatus(node: HTMLElement, text: string, error = false): void 
   node.classList.toggle('error', error);
 }
 
+/** Reflect picked file(s) in a dropzone: a single filename, or a count when several. */
+export function reflectFiles(drop: HTMLElement, chip: HTMLElement, input: HTMLInputElement): void {
+  const files = input.files ? Array.from(input.files) : [];
+  drop.classList.toggle('has-file', files.length > 0);
+  chip.textContent = files.length === 1 ? files[0]!.name : files.length ? String(files.length) : '';
+}
+
 /** Value of the checked radio in a group, or a fallback. */
 export function pick<T extends string>(name: string, fallback: T): T {
   const checked = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);

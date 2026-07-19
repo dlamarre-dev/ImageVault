@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from .crypto import normalize_password
+from .format import split_payload
 from .pipeline import RestoredFile, decode_vault
 from .stego import GALLERY_SALT, extract_bytes_jpeg, extract_bytes_rgba
 
@@ -28,6 +29,10 @@ IV_LEN = 12
 GCM_TAG_LEN = 16
 GALLERY_FRAG_LEN = HEADER_LEN + GALLERY_SLOT_DATA
 GALLERY_SLOT_BYTES = IV_LEN + GALLERY_FRAG_LEN + GCM_TAG_LEN
+# Eligible carriers must exceed the slot by this factor (matches the TS encoder);
+# below it an image can't be a carrier, so extraction skips it (never drains the
+# keystream).
+GALLERY_CAPACITY_MARGIN = 4
 
 
 class GalleryRestoreError(Exception):
@@ -59,14 +64,16 @@ def _gallery_keys(
 def _extract_slot(image_bytes: bytes, pos_key: bytes) -> bytes | None:
     """Read a fixed-size slot from one photo (JPEG DCT or PNG spatial LSB)."""
     if image_bytes[:2] == b"\xff\xd8":  # JPEG
-        return extract_bytes_jpeg(image_bytes, pos_key, GALLERY_SLOT_BYTES)
+        return extract_bytes_jpeg(image_bytes, pos_key, GALLERY_SLOT_BYTES, GALLERY_CAPACITY_MARGIN)
     from PIL import Image
 
     with Image.open(io.BytesIO(image_bytes)) as img:
         rgba = img.convert("RGBA")
         width, height = rgba.size
         data = rgba.tobytes()
-    return extract_bytes_rgba(data, width, height, pos_key, GALLERY_SLOT_BYTES)
+    return extract_bytes_rgba(
+        data, width, height, pos_key, GALLERY_SLOT_BYTES, GALLERY_CAPACITY_MARGIN
+    )
 
 
 def decode_gallery(
@@ -101,9 +108,20 @@ def decode_gallery(
         raise GalleryRestoreError("no restorable gallery found (wrong password or no gallery photos)")
 
     # Each fragment is header || shard || zero-pad; the vault decoder's own
-    # split_payload reads exactly shard_len bytes and ignores the padding, so it
-    # groups by set id, reconstructs, verifies the hash, and decrypts as usual.
-    try:
-        return decode_vault(fragments, password)
-    except Exception as exc:  # noqa: BLE001 - surface a uniform gallery failure
-        raise GalleryRestoreError("gallery reconstruction failed") from exc
+    # split_payload reads exactly shard_len bytes and ignores the padding. Group by
+    # set id and try each group largest-first (mirrors the TS decoder), so a mixed
+    # folder or a second same-password gallery still resolves to a complete set.
+    groups: dict[bytes, list[bytes]] = {}
+    for frag in fragments:
+        try:
+            header, _shard = split_payload(frag)
+        except Exception:  # noqa: BLE001 - not a well-formed payload, skip it
+            continue
+        groups.setdefault(header.set_id, []).append(frag)
+
+    for group in sorted(groups.values(), key=len, reverse=True):
+        try:
+            return decode_vault(group, password)
+        except Exception:  # noqa: BLE001 - incomplete/failed set, try the next
+            continue
+    raise GalleryRestoreError("gallery reconstruction failed")

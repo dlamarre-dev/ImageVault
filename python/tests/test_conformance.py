@@ -148,6 +148,17 @@ def test_gallery_jpeg_round_trip():
     assert restored.content == expected
 
 
+def test_gallery_ignores_foreign_photo():
+    """A foreign JPEG whose carrier count is just above the slot size (below the 4x
+    margin) is skipped, not fatal — the capacity-margin guard on extraction."""
+    from stegoshard import decode_gallery
+
+    manifest, images, expected = _gallery_photos("gallery-jpeg")
+    foreign = (FIXTURES / "gallery-jpeg" / "foreign.jpg").read_bytes()
+    restored = decode_gallery([*images, foreign], manifest["password"])
+    assert restored.content == expected
+
+
 def test_gallery_wrong_password_is_rejected():
     """A wrong password authenticates no fragment — indistinguishable from no gallery."""
     from stegoshard import GalleryRestoreError, decode_gallery

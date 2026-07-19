@@ -53,11 +53,11 @@ import {
 } from './header';
 import {
   GALLERY_SALT,
+  StegoCapacityError,
   embedBytesStegoJpeg,
   embedBytesStegoRgba,
   extractBytesStegoJpeg,
   extractBytesStegoRgba,
-  jpegStegoCapacityBits,
 } from './stego';
 import { type VaultKey, buildVaultBlob, decodeVaultBlob, sha256Short } from './vault';
 
@@ -139,6 +139,17 @@ export class GalleryFileTooLargeError extends Error {
   }
 }
 
+/** Thrown when more cover photos are supplied than a gallery will process. */
+export class GalleryTooManyImagesError extends Error {
+  constructor(
+    readonly provided: number,
+    readonly limit: number,
+  ) {
+    super(`gallery accepts at most ${limit} photos, got ${provided}`);
+    this.name = 'GalleryTooManyImagesError';
+  }
+}
+
 /** Thrown when a cover photo has too few eligible carriers to hide a slot deniably. */
 export class GalleryCoverCapacityError extends Error {
   constructor(
@@ -190,34 +201,62 @@ async function galleryKeys(
   return { posKey, aeadKey };
 }
 
-/** Eligible-carrier count of a cover (JPEG coefficients, or RGB LSBs). */
-function coverCapacityBits(cover: GalleryCover): number {
-  return cover.kind === 'jpeg' ? jpegStegoCapacityBits(cover.jpeg) : cover.width * cover.height * 3;
-}
-
-/** Hide a slot in a cover, returning an image of the same kind. RGBA is copied, not mutated. */
+/**
+ * Hide a slot in a cover, returning an image of the same kind. RGBA is copied, not
+ * mutated. The capacity check lives in the stego embedders (margin factor); a
+ * too-small cover surfaces as a named GalleryCoverCapacityError.
+ */
 async function embedSlot(
   cover: GalleryCover,
   slot: Uint8Array,
   posKey: Uint8Array,
 ): Promise<GalleryImage> {
-  if (cover.kind === 'jpeg') {
-    return {
-      kind: 'jpeg',
-      name: cover.name,
-      jpeg: await embedBytesStegoJpeg(cover.jpeg, slot, posKey),
-    };
+  try {
+    if (cover.kind === 'jpeg') {
+      return {
+        kind: 'jpeg',
+        name: cover.name,
+        jpeg: await embedBytesStegoJpeg(cover.jpeg, slot, posKey, GALLERY_CAPACITY_MARGIN),
+      };
+    }
+    const rgba = Uint8Array.from(cover.rgba);
+    await embedBytesStegoRgba(
+      rgba,
+      cover.width,
+      cover.height,
+      slot,
+      posKey,
+      GALLERY_CAPACITY_MARGIN,
+    );
+    return { kind: 'rgba', name: cover.name, rgba, width: cover.width, height: cover.height };
+  } catch (err) {
+    if (err instanceof StegoCapacityError) {
+      throw new GalleryCoverCapacityError(
+        cover.name,
+        err.capacityBits,
+        GALLERY_SLOT_BITS * GALLERY_CAPACITY_MARGIN,
+      );
+    }
+    throw err;
   }
-  const rgba = Uint8Array.from(cover.rgba);
-  await embedBytesStegoRgba(rgba, cover.width, cover.height, slot, posKey);
-  return { kind: 'rgba', name: cover.name, rgba, width: cover.width, height: cover.height };
 }
 
-/** Read a fixed-size slot out of a cover; null if it cannot hold one. */
+/**
+ * Read a fixed-size slot out of a cover; null if it cannot hold one. The same
+ * capacity margin as embedding is required, so a real carrier always passes and a
+ * smaller image is skipped rather than draining the position keystream.
+ */
 async function extractSlot(cover: GalleryCover, posKey: Uint8Array): Promise<Uint8Array | null> {
   return cover.kind === 'jpeg'
-    ? extractBytesStegoJpeg(cover.jpeg, posKey, GALLERY_SLOT_BYTES)
-    : extractBytesStegoRgba(cover.rgba, cover.width, cover.height, posKey, GALLERY_SLOT_BYTES);
+    ? extractBytesStegoJpeg(cover.jpeg, posKey, GALLERY_SLOT_BYTES, GALLERY_CAPACITY_MARGIN)
+    : extractBytesStegoRgba(
+        cover.rgba,
+        cover.width,
+        cover.height,
+        posKey,
+        GALLERY_SLOT_BYTES,
+        GALLERY_CAPACITY_MARGIN,
+      );
 }
 
 /**
@@ -235,7 +274,7 @@ export async function galleryEncode(
 ): Promise<GalleryEncodeResult> {
   const params = options.params ?? DEFAULT_ARGON2;
   if (covers.length > GALLERY_MAX_IMAGES) {
-    throw new GalleryFileTooLargeError(content.length, GALLERY_MAX_BLOB);
+    throw new GalleryTooManyImagesError(covers.length, GALLERY_MAX_IMAGES);
   }
   if (covers.length < GALLERY_MIN_IMAGES) {
     throw new GalleryTooFewImagesError(covers.length, GALLERY_MIN_IMAGES);
@@ -255,13 +294,6 @@ export async function galleryEncode(
   const decoys = covers.length - carriers;
   if (decoys < GALLERY_MIN_DECOYS) {
     throw new GalleryTooFewImagesError(covers.length, carriers + GALLERY_MIN_DECOYS);
-  }
-
-  // Every photo embeds a full slot (fragment or decoy), so all must clear capacity.
-  const neededBits = GALLERY_SLOT_BITS * GALLERY_CAPACITY_MARGIN;
-  for (const cover of covers) {
-    const cap = coverCapacityBits(cover);
-    if (cap < neededBits) throw new GalleryCoverCapacityError(cover.name, cap, neededBits);
   }
 
   const { shards, shardLen } = encodeShards(blob, k, m);
