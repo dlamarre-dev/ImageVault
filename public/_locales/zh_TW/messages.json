@@ -549,5 +549,181 @@
   "errGalleryRestore": {
     "message": "無法從這些照片還原任何秘密（密碼錯誤，或它們不是相簿）。",
     "description": "Gallery Mode error: nothing restorable."
+  },
+  "destGallery": {
+    "message": "藏在照片中（相簿）",
+    "description": "Popup: Gallery Mode destination — hide the secret across ordinary photos."
+  },
+  "restoreModeStandard": {
+    "message": "標準",
+    "description": "Restore: standard vault mode (images / zip / pdf / key)."
+  },
+  "restoreModeGallery": {
+    "message": "從照片還原（相簿）",
+    "description": "Restore: Gallery Mode — recover from ordinary photos."
+  },
+  "galleryPasswordHint": {
+    "message": "相簿模式使用上方的密碼：它同時加密秘密並決定秘密藏在每張照片的哪個位置。沒有金鑰檔案需要保管。",
+    "description": "Gallery Mode: note that the save password is also the gallery password."
+  },
+  "btnWorkflows": {
+    "message": "工作模式",
+    "description": "Header button that returns to the workflow chooser."
+  },
+  "chooserTitle": {
+    "message": "您想以哪種方式操作？",
+    "description": "Chooser: heading."
+  },
+  "chooserBody": {
+    "message": "如果您是新手，請選擇引導式步驟；若已熟悉本工具，可選擇一次呈現所有選項的專家檢視。您隨時可以切換。",
+    "description": "Chooser: sub-text."
+  },
+  "workflowGuided": {
+    "message": "引導式",
+    "description": "Chooser: guided workflow option title."
+  },
+  "workflowGuidedDesc": {
+    "message": "逐步回答幾個問題。我們會建議合適的選項，並在需要時請您提供檔案。",
+    "description": "Chooser: guided workflow description."
+  },
+  "workflowExpert": {
+    "message": "專家",
+    "description": "Chooser: expert workflow option title."
+  },
+  "workflowExpertDesc": {
+    "message": "所有選項都在同一畫面上。熟悉之後最快速。",
+    "description": "Chooser: expert workflow description."
+  },
+  "workflowRecommended": {
+    "message": "上次使用",
+    "description": "Chooser: badge marking the previously chosen workflow."
+  },
+  "wizStep": {
+    "message": "步驟 $STEP$／共 $TOTAL$",
+    "description": "Wizard: step counter.",
+    "placeholders": {
+      "step": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "wizBack": {
+    "message": "上一步",
+    "description": "Wizard: go to the previous step."
+  },
+  "wizNext": {
+    "message": "下一步",
+    "description": "Wizard: go to the next step."
+  },
+  "wizStartOver": {
+    "message": "重新開始",
+    "description": "Wizard: begin a new run after finishing."
+  },
+  "wizActionTitle": {
+    "message": "您想做什麼？",
+    "description": "Wizard: first step question."
+  },
+  "wizActionSave": {
+    "message": "儲存秘密",
+    "description": "Wizard: save action option."
+  },
+  "wizActionSaveDesc": {
+    "message": "加密檔案並轉換成圖片（或藏進照片中）。",
+    "description": "Wizard: save action description."
+  },
+  "wizActionRestore": {
+    "message": "還原秘密",
+    "description": "Wizard: restore action option."
+  },
+  "wizActionRestoreDesc": {
+    "message": "從圖片、PDF、.zip 或照片還原原始檔案。",
+    "description": "Wizard: restore action description."
+  },
+  "wizFileTitle": {
+    "message": "您想保護哪個檔案？",
+    "description": "Wizard: save file step."
+  },
+  "wizDestTitle": {
+    "message": "要存放在哪裡？",
+    "description": "Wizard: destination step."
+  },
+  "wizKeyTitle": {
+    "message": "金鑰要如何處理？",
+    "description": "Wizard: key-mode step."
+  },
+  "wizPasswordTitle": {
+    "message": "設定密碼",
+    "description": "Wizard: password step title."
+  },
+  "wizPasswordDesc": {
+    "message": "還原時需要完全相同的這組密碼。一旦遺失便無法復原。",
+    "description": "Wizard: password step help."
+  },
+  "wizRestoreModeTitle": {
+    "message": "您要從什麼來源還原？",
+    "description": "Wizard: restore-mode step."
+  },
+  "wizRestoreStandardDesc": {
+    "message": "StegoShard 圖片、列印的 PDF，或儲存時建立的 .zip。",
+    "description": "Wizard: standard restore description."
+  },
+  "wizRestoreGalleryDesc": {
+    "message": "暗中夾帶相簿模式秘密的普通照片。",
+    "description": "Wizard: gallery restore description."
+  },
+  "wizRestoreFilesTitle": {
+    "message": "加入要用來還原的檔案",
+    "description": "Wizard: restore files step."
+  },
+  "wizReviewTitle": {
+    "message": "準備好即可開始",
+    "description": "Wizard: final review step."
+  },
+  "wizReviewFile": {
+    "message": "檔案",
+    "description": "Wizard: review label for the chosen file."
+  },
+  "wizRunSave": {
+    "message": "建立圖片",
+    "description": "Wizard: run the save."
+  },
+  "wizRunRestore": {
+    "message": "還原檔案",
+    "description": "Wizard: run the restore."
+  },
+  "destDiskDesc": {
+    "message": "一組 PNG 圖片（或一個 .zip），可存放在磁碟或雲端。",
+    "description": "Wizard: disk destination description."
+  },
+  "destPaperDesc": {
+    "message": "可列印的 PDF — 每頁一個 QR，能承受列印與掃描。",
+    "description": "Wizard: paper destination description."
+  },
+  "destBinaryDesc": {
+    "message": "以單一不透明檔案取代圖片 — 適合較大的秘密。",
+    "description": "Wizard: binary destination description."
+  },
+  "destCloudDesc": {
+    "message": "將圖片直接上傳到 Google 相簿。",
+    "description": "Wizard: cloud destination description."
+  },
+  "destGalleryDesc": {
+    "message": "分散藏在您自己的一組普通照片中，並加入誘餌。",
+    "description": "Wizard: gallery destination description."
+  },
+  "keyModeEmbeddedDesc": {
+    "message": "金鑰隨圖片一起攜帶。最簡單 — 您只需保管一組密碼。",
+    "description": "Wizard: embedded key-mode description."
+  },
+  "keyModeKeyfileDesc": {
+    "message": "獨立的 .key 檔案，與圖片分開保存。還原時兩者都需要。",
+    "description": "Wizard: keyfile key-mode description."
+  },
+  "keyModeStegoDesc": {
+    "message": "金鑰藏在您提供的一張普通照片中。請保留該照片以便還原。",
+    "description": "Wizard: stego key-mode description."
   }
 }

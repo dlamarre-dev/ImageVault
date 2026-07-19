@@ -8,9 +8,13 @@ import type { BinaryVariant, KeyMode } from '@core';
 
 const PREFS_KEY = 'stegoshard.prefs';
 
-export type Destination = 'disk' | 'paper' | 'cloud' | 'binary';
+export type Destination = 'disk' | 'paper' | 'cloud' | 'binary' | 'gallery';
+
+/** Which UI to show at launch — the step-by-step wizard or the dense one-screen UI. */
+export type Workflow = 'guided' | 'expert';
 
 export interface Prefs {
+  workflow: Workflow;
   destination: Destination;
   keyMode: KeyMode;
   addBand: boolean;
@@ -21,6 +25,7 @@ export interface Prefs {
 }
 
 const DEFAULT_PREFS: Prefs = {
+  workflow: 'guided',
   destination: 'disk',
   keyMode: 'embedded',
   addBand: false,

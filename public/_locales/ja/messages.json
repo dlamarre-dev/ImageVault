@@ -549,5 +549,181 @@
   "errGalleryRestore": {
     "message": "これらの写真から秘密を復元できませんでした（パスワードが違うか、ギャラリーではありません）。",
     "description": "Gallery Mode error: nothing restorable."
+  },
+  "destGallery": {
+    "message": "写真に隠す（ギャラリー）",
+    "description": "Popup: Gallery Mode destination — hide the secret across ordinary photos."
+  },
+  "restoreModeStandard": {
+    "message": "標準",
+    "description": "Restore: standard vault mode (images / zip / pdf / key)."
+  },
+  "restoreModeGallery": {
+    "message": "写真から（ギャラリー）",
+    "description": "Restore: Gallery Mode — recover from ordinary photos."
+  },
+  "galleryPasswordHint": {
+    "message": "ギャラリーは上のパスワードを使用します。秘密を暗号化し、各写真のどこに隠すかを決めます。保管すべき鍵ファイルはありません。",
+    "description": "Gallery Mode: note that the save password is also the gallery password."
+  },
+  "btnWorkflows": {
+    "message": "操作モード",
+    "description": "Header button that returns to the workflow chooser."
+  },
+  "chooserTitle": {
+    "message": "どのように進めますか？",
+    "description": "Chooser: heading."
+  },
+  "chooserBody": {
+    "message": "初めての方はガイド付きの手順を、ツールに慣れている方はすべての選択肢を一度に表示するエキスパート表示をお選びください。いつでも切り替えられます。",
+    "description": "Chooser: sub-text."
+  },
+  "workflowGuided": {
+    "message": "ガイド付き",
+    "description": "Chooser: guided workflow option title."
+  },
+  "workflowGuidedDesc": {
+    "message": "いくつかの質問に一歩ずつお答えください。適切な選択肢を提案し、必要に応じてファイルをお願いします。",
+    "description": "Chooser: guided workflow description."
+  },
+  "workflowExpert": {
+    "message": "エキスパート",
+    "description": "Chooser: expert workflow option title."
+  },
+  "workflowExpertDesc": {
+    "message": "すべての選択肢が一画面に。慣れれば最速です。",
+    "description": "Chooser: expert workflow description."
+  },
+  "workflowRecommended": {
+    "message": "前回使用",
+    "description": "Chooser: badge marking the previously chosen workflow."
+  },
+  "wizStep": {
+    "message": "ステップ $STEP$ / $TOTAL$",
+    "description": "Wizard: step counter.",
+    "placeholders": {
+      "step": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "wizBack": {
+    "message": "戻る",
+    "description": "Wizard: go to the previous step."
+  },
+  "wizNext": {
+    "message": "次へ",
+    "description": "Wizard: go to the next step."
+  },
+  "wizStartOver": {
+    "message": "最初からやり直す",
+    "description": "Wizard: begin a new run after finishing."
+  },
+  "wizActionTitle": {
+    "message": "何をしますか？",
+    "description": "Wizard: first step question."
+  },
+  "wizActionSave": {
+    "message": "秘密を保存",
+    "description": "Wizard: save action option."
+  },
+  "wizActionSaveDesc": {
+    "message": "ファイルを暗号化して画像に変換します（または写真の中に隠します）。",
+    "description": "Wizard: save action description."
+  },
+  "wizActionRestore": {
+    "message": "秘密を復元",
+    "description": "Wizard: restore action option."
+  },
+  "wizActionRestoreDesc": {
+    "message": "画像・PDF・.zip・写真から元のファイルを復元します。",
+    "description": "Wizard: restore action description."
+  },
+  "wizFileTitle": {
+    "message": "どのファイルを保護しますか？",
+    "description": "Wizard: save file step."
+  },
+  "wizDestTitle": {
+    "message": "どこに保存しますか？",
+    "description": "Wizard: destination step."
+  },
+  "wizKeyTitle": {
+    "message": "鍵をどう扱いますか？",
+    "description": "Wizard: key-mode step."
+  },
+  "wizPasswordTitle": {
+    "message": "パスワードを設定",
+    "description": "Wizard: password step title."
+  },
+  "wizPasswordDesc": {
+    "message": "復元にはこのパスワードがそのまま必要です。失うと復旧できません。",
+    "description": "Wizard: password step help."
+  },
+  "wizRestoreModeTitle": {
+    "message": "何から復元しますか？",
+    "description": "Wizard: restore-mode step."
+  },
+  "wizRestoreStandardDesc": {
+    "message": "StegoShard の画像、印刷した PDF、または保存時に作成した .zip。",
+    "description": "Wizard: standard restore description."
+  },
+  "wizRestoreGalleryDesc": {
+    "message": "ギャラリーモードの秘密を密かに含む普通の写真。",
+    "description": "Wizard: gallery restore description."
+  },
+  "wizRestoreFilesTitle": {
+    "message": "復元に使うファイルを追加してください",
+    "description": "Wizard: restore files step."
+  },
+  "wizReviewTitle": {
+    "message": "準備ができたら開始できます",
+    "description": "Wizard: final review step."
+  },
+  "wizReviewFile": {
+    "message": "ファイル",
+    "description": "Wizard: review label for the chosen file."
+  },
+  "wizRunSave": {
+    "message": "画像を作成",
+    "description": "Wizard: run the save."
+  },
+  "wizRunRestore": {
+    "message": "ファイルを復元",
+    "description": "Wizard: run the restore."
+  },
+  "destDiskDesc": {
+    "message": "ディスクやクラウドに保管する PNG 画像一式（または .zip）。",
+    "description": "Wizard: disk destination description."
+  },
+  "destPaperDesc": {
+    "message": "印刷可能な PDF — 1 ページに 1 つの QR。印刷とスキャンに耐えます。",
+    "description": "Wizard: paper destination description."
+  },
+  "destBinaryDesc": {
+    "message": "画像の代わりに単一の不透明なファイル — 大きめの秘密に最適。",
+    "description": "Wizard: binary destination description."
+  },
+  "destCloudDesc": {
+    "message": "画像を Google フォトのアルバムに直接アップロードします。",
+    "description": "Wizard: cloud destination description."
+  },
+  "destGalleryDesc": {
+    "message": "あなた自身の普通の写真一式に分散し、おとりも加えます。",
+    "description": "Wizard: gallery destination description."
+  },
+  "keyModeEmbeddedDesc": {
+    "message": "鍵は画像の中に含まれます。最も簡単 — 保管するのはパスワードだけです。",
+    "description": "Wizard: embedded key-mode description."
+  },
+  "keyModeKeyfileDesc": {
+    "message": "画像とは別に保管する独立した .key ファイル。復元には両方が必要です。",
+    "description": "Wizard: keyfile key-mode description."
+  },
+  "keyModeStegoDesc": {
+    "message": "鍵はあなたが用意した普通の写真の中に隠されます。復元にはその写真を保管してください。",
+    "description": "Wizard: stego key-mode description."
   }
 }

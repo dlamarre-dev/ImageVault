@@ -17,6 +17,7 @@
       </div>
       <div class="appbar-actions">
         <span id="state-pill" class="pill" role="status" aria-live="polite" hidden></span>
+        <button id="workflows-btn" class="btn-ghost" data-i18n="btnWorkflows" hidden></button>
         <button id="settings-btn" class="btn-ghost" data-i18n="btnOpenOptions"></button>
       </div>
     </header>
@@ -45,7 +46,28 @@
         <p id="unlock-status" class="status" role="status"></p>
       </section>
 
-      <div class="grid">
+      <!-- Launch chooser: pick a workflow (shown once unlocked). -->
+      <section id="chooser" class="card banner" hidden>
+        <h2 data-i18n="chooserTitle"></h2>
+        <p class="lead" data-i18n="chooserBody"></p>
+        <div class="chooser-grid">
+          <button id="choose-guided" class="chooser-card" type="button">
+            <span class="chooser-card-title" data-i18n="workflowGuided"></span>
+            <span class="chooser-card-desc muted" data-i18n="workflowGuidedDesc"></span>
+            <span id="rec-guided" class="pill pill-ok" data-i18n="workflowRecommended" hidden></span>
+          </button>
+          <button id="choose-expert" class="chooser-card" type="button">
+            <span class="chooser-card-title" data-i18n="workflowExpert"></span>
+            <span class="chooser-card-desc muted" data-i18n="workflowExpertDesc"></span>
+            <span id="rec-expert" class="pill pill-ok" data-i18n="workflowRecommended" hidden></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Guided workflow mounts here. -->
+      <div id="wizard-root" hidden></div>
+
+      <div id="expert-view" class="grid" hidden>
         <!-- Unlocked: save -->
         <section id="save" class="card" hidden>
           <div class="card-head">
@@ -74,7 +96,7 @@
             <span id="dz-file" class="dz-file"></span>
             <input id="save-file" type="file" />
           </div>
-          <p class="muted estimate-line">
+          <p id="estimate-line" class="muted estimate-line">
             <span data-i18n="estimateImages"></span> <span id="estimate" class="badge">—</span>
           </p>
 
@@ -99,32 +121,53 @@
               <label id="dest-cloud-label" hidden
                 ><input type="radio" name="dest" value="cloud" /><span data-i18n="destCloud"></span
               ></label>
+              <label
+                ><input type="radio" name="dest" value="gallery" /><span
+                  data-i18n="destGallery"
+                ></span
+              ></label>
             </fieldset>
             <p id="cloud-note" class="muted" data-i18n="cloudNote" hidden></p>
             <p id="size-warn" class="muted warn" hidden></p>
 
-            <label class="muted" data-i18n="keyModeHeading"></label>
-            <fieldset class="segmented">
-              <label
-                ><input type="radio" name="keymode" value="embedded" checked /><span
-                  data-i18n="keyModeEmbedded"
-                ></span
-              ></label>
-              <label
-                ><input type="radio" name="keymode" value="keyfile" /><span
-                  data-i18n="keyModeKeyfile"
-                ></span
-              ></label>
-              <label
-                ><input type="radio" name="keymode" value="stego" /><span
-                  data-i18n="keyModeStego"
-                ></span
-              ></label>
-            </fieldset>
-            <details class="why">
-              <summary data-i18n="whyLabel"></summary>
-              <p data-i18n="keyModeHelp"></p>
-            </details>
+            <div id="keymode-fields">
+              <label class="muted" data-i18n="keyModeHeading"></label>
+              <fieldset class="segmented">
+                <label
+                  ><input type="radio" name="keymode" value="embedded" checked /><span
+                    data-i18n="keyModeEmbedded"
+                  ></span
+                ></label>
+                <label
+                  ><input type="radio" name="keymode" value="keyfile" /><span
+                    data-i18n="keyModeKeyfile"
+                  ></span
+                ></label>
+                <label
+                  ><input type="radio" name="keymode" value="stego" /><span
+                    data-i18n="keyModeStego"
+                  ></span
+                ></label>
+              </fieldset>
+              <details class="why">
+                <summary data-i18n="whyLabel"></summary>
+                <p data-i18n="keyModeHelp"></p>
+              </details>
+            </div>
+
+            <div id="gallery-fields" hidden>
+              <p class="muted" data-i18n="galleryIntro"></p>
+              <div id="gallery-covers-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
+                <span class="dz-prompt">
+                  <span class="dz-title" data-i18n="galleryCoversTitle"></span><br />
+                  <span class="muted" data-i18n="dropPrompt"></span>
+                </span>
+                <span id="gallery-covers-name" class="dz-file"></span>
+                <input id="gallery-covers" type="file" accept="image/png,image/jpeg" multiple />
+              </div>
+              <label data-i18n="labelStegoPassword" for="gallery-save-pw"></label>
+              <input id="gallery-save-pw" type="password" autocomplete="new-password" />
+            </div>
 
             <div id="stego-fields" hidden>
               <div id="cover-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
@@ -200,6 +243,20 @@
         <section id="restore" class="card">
           <div class="card-head"><h2 data-i18n="restoreHeading"></h2></div>
 
+          <fieldset class="segmented">
+            <label
+              ><input type="radio" name="restore-mode" value="standard" checked /><span
+                data-i18n="restoreModeStandard"
+              ></span
+            ></label>
+            <label
+              ><input type="radio" name="restore-mode" value="gallery" /><span
+                data-i18n="restoreModeGallery"
+              ></span
+            ></label>
+          </fieldset>
+          <p id="restore-gallery-hint" class="muted" data-i18n="galleryIntro" hidden></p>
+
           <div id="restore-drop" class="dropzone" tabindex="0" role="button">
             <svg
               class="dz-icon"
@@ -235,7 +292,7 @@
             data-i18n-placeholder="labelPassword"
           />
 
-          <details class="advanced">
+          <details id="restore-advanced" class="advanced">
             <summary data-i18n="advancedOptions"></summary>
             <div id="key-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
               <svg
@@ -275,80 +332,6 @@
           </div>
         </section>
 
-        <!-- Gallery Mode: independent of the managed key (its own password). -->
-        <section id="gallery-save" class="card">
-          <div class="card-head"><h2 data-i18n="galleryHeading"></h2></div>
-          <p class="muted" data-i18n="galleryIntro"></p>
-
-          <div id="gallery-file-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
-            <span class="dz-prompt">
-              <span class="dz-title" data-i18n="gallerySecretTitle"></span><br />
-              <span class="muted" data-i18n="dropPrompt"></span>
-            </span>
-            <span id="gallery-file-name" class="dz-file"></span>
-            <input id="gallery-file" type="file" />
-          </div>
-
-          <div id="gallery-covers-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
-            <span class="dz-prompt">
-              <span class="dz-title" data-i18n="galleryCoversTitle"></span><br />
-              <span class="muted" data-i18n="dropPrompt"></span>
-            </span>
-            <span id="gallery-covers-name" class="dz-file"></span>
-            <input id="gallery-covers" type="file" accept="image/png,image/jpeg" multiple />
-          </div>
-
-          <input
-            id="gallery-save-pw"
-            class="stack-gap"
-            type="password"
-            autocomplete="new-password"
-            data-i18n-placeholder="labelPassword"
-          />
-
-          <button
-            id="gallery-save-btn"
-            class="btn-primary btn-lg"
-            data-i18n="btnGallerySave"
-          ></button>
-          <p id="gallery-save-status" class="status" role="status"></p>
-          <div id="gallery-save-result" class="result" hidden>
-            <p class="result-title" data-i18n="savedTitle"></p>
-            <p id="gallery-save-result-note" class="result-note"></p>
-          </div>
-        </section>
-
-        <section id="gallery-restore" class="card">
-          <div class="card-head"><h2 data-i18n="galleryRestoreHeading"></h2></div>
-
-          <div id="gallery-restore-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
-            <span class="dz-prompt">
-              <span class="dz-title" data-i18n="galleryPhotosTitle"></span><br />
-              <span class="muted" data-i18n="dropPrompt"></span>
-            </span>
-            <span id="gallery-restore-name" class="dz-file"></span>
-            <input id="gallery-restore-files" type="file" accept="image/png,image/jpeg" multiple />
-          </div>
-
-          <input
-            id="gallery-restore-pw"
-            class="stack-gap"
-            type="password"
-            autocomplete="current-password"
-            data-i18n-placeholder="labelPassword"
-          />
-
-          <button
-            id="gallery-restore-btn"
-            class="btn-primary btn-lg"
-            data-i18n="btnGalleryRestore"
-          ></button>
-          <p id="gallery-restore-status" class="status" role="status"></p>
-          <div id="gallery-restore-result" class="result" hidden>
-            <p class="result-title" data-i18n="restoredTitle"></p>
-            <p id="gallery-restore-result-note" class="result-note"></p>
-          </div>
-        </section>
       </div>
 
       <footer class="app-footer muted">
