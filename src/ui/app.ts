@@ -2,28 +2,26 @@ import browser from 'webextension-polyfill';
 import {
   type BinaryVariant,
   estimateImages,
-  parseKeyBlock,
   PROFILE_CLOUD,
   PROFILE_DISK,
   PROFILE_PAPER,
   WARN_FILE_BYTES,
-  unlockKeyBlock,
   type KeyMode,
 } from '@core';
 import { localizeDom } from './i18n';
 import { el, friendlyError, msg, pick, reflectFiles, setStatus, show, wireDropzone } from './dom';
 import { getSession, isKeySet, lock, unlock } from './keystore';
-import { type Destination, getPrefs, savePrefs } from './prefs';
-import {
-  restoreFileFromDisk,
-  restoreGalleryFromDisk,
-  saveFileToBinary,
-  saveFileToDisk,
-  saveGalleryToDisk,
-} from './disk';
+import { type Destination, getPrefs, savePrefs, type Workflow } from './prefs';
 import { HAS_GOOGLE_PHOTOS } from './config';
-import { saveToPhotos } from './google-photos';
 import { wireKeyManager } from './keymanager';
+import {
+  runSave,
+  verifyStegoPassword,
+  type SaveRequest,
+  type StegoInput,
+} from './save-controller';
+import { runRestore, type RestoreMode } from './restore-controller';
+import { createWizard, type Wizard, type WizardEnv } from './wizard';
 
 localizeDom();
 
@@ -31,6 +29,11 @@ const noKeySection = el('no-key');
 const lockedSection = el('locked');
 const saveSection = el('save');
 const statePill = el('state-pill');
+
+const chooserSection = el('chooser');
+const expertView = el('expert-view');
+const wizardRoot = el('wizard-root');
+const workflowsBtn = el<HTMLButtonElement>('workflows-btn');
 
 const unlockPw = el<HTMLInputElement>('unlock-pw');
 const unlockBtn = el<HTMLButtonElement>('unlock-btn');
@@ -64,6 +67,13 @@ const coverDrop = el('cover-drop');
 const coverFile = el<HTMLInputElement>('cover-file');
 const coverDzFile = el('cover-dz-file');
 const stegoPw = el<HTMLInputElement>('stego-pw');
+const estimateLine = el('estimate-line');
+const keymodeFields = el('keymode-fields');
+const galleryFields = el('gallery-fields');
+const galleryCovers = el<HTMLInputElement>('gallery-covers');
+const galleryCoversDrop = el('gallery-covers-drop');
+const galleryCoversName = el('gallery-covers-name');
+const gallerySavePw = el<HTMLInputElement>('gallery-save-pw');
 
 const restoreFiles = el<HTMLInputElement>('restore-files');
 const restoreDrop = el('restore-drop');
@@ -77,9 +87,12 @@ const restorePhotosBtn = el<HTMLButtonElement>('restore-photos-btn');
 const restoreStatus = el('restore-status');
 const restoreResult = el('restore-result');
 const restoreResultNote = el('restore-result-note');
+const restoreAdvanced = el('restore-advanced');
+const restoreGalleryHint = el('restore-gallery-hint');
 
 const selectedKeyMode = () => pick<KeyMode>('keymode', 'embedded');
 const selectedDest = () => pick<Destination>('dest', 'disk');
+const selectedRestoreMode = () => pick<RestoreMode>('restore-mode', 'standard');
 
 function setRadio(name: string, value: string): void {
   const radio = document.querySelector<HTMLInputElement>(`input[name="${name}"][value="${value}"]`);
@@ -98,13 +111,20 @@ const selectedVariant = () => binaryVariant.value as BinaryVariant;
 /** Show the option controls that match the chosen destination. */
 function reflectDestination(): void {
   const dest = selectedDest();
+  // Gallery derives its own key from a dedicated password and produces innocuous
+  // photos — the key mode, label band, zip and image estimate don't apply to it.
+  const gallery = dest === 'gallery';
+  show(galleryFields, gallery);
+  show(keymodeFields, !gallery);
+  show(estimateLine, !gallery);
   show(zipField, dest === 'disk');
   show(binaryFields, dest === 'binary');
   show(paperFields, dest === 'paper');
   // A label band is drawn onto images; it makes no sense for binary output.
   show(addBandLabel, dest === 'disk');
-  show(bandFields, (dest !== 'disk' && dest !== 'binary') || addBand.checked);
+  show(bandFields, !gallery && ((dest !== 'disk' && dest !== 'binary') || addBand.checked));
   reflectVariant();
+  reflectKeyMode();
 }
 
 /** Update the binary-variant help text to match the chosen variant. */
@@ -116,7 +136,14 @@ function reflectVariant(): void {
 
 /** Show the cover-image + password inputs only for the stego key mode. */
 function reflectKeyMode(): void {
-  show(stegoFields, selectedKeyMode() === 'stego');
+  show(stegoFields, selectedDest() !== 'gallery' && selectedKeyMode() === 'stego');
+}
+
+/** Standard restore uses a key file; gallery restore is password-only. */
+function reflectRestoreMode(): void {
+  const gallery = selectedRestoreMode() === 'gallery';
+  show(restoreGalleryHint, gallery);
+  show(restoreAdvanced, !gallery);
 }
 
 if (HAS_GOOGLE_PHOTOS) {
@@ -136,6 +163,9 @@ async function loadPrefs(): Promise<void> {
   asZip.checked = prefs.asZip;
   addInstructions.checked = prefs.includeInstructions;
   binaryVariant.value = prefs.binaryVariant;
+  // Highlight the workflow the user last chose as the recommended one.
+  show(el('rec-guided'), prefs.workflow === 'guided');
+  show(el('rec-expert'), prefs.workflow === 'expert');
   reflectDestination();
   reflectKeyMode();
 }
@@ -146,11 +176,55 @@ function setPill(state: 'none' | 'locked' | 'unlocked'): void {
   statePill.classList.toggle('pill-ok', state === 'unlocked');
 }
 
+// Which workflow view is active once the vault is unlocked.
+let view: Workflow | 'chooser' = 'chooser';
+let wizard: Wizard | null = null;
+
+const wizardEnv: WizardEnv = {
+  msg,
+  locale: () => browser.i18n.getUILanguage(),
+  saveDestinations: HAS_GOOGLE_PHOTOS
+    ? ['disk', 'paper', 'binary', 'cloud', 'gallery']
+    : ['disk', 'paper', 'binary', 'gallery'],
+  getSaveKey: async () => {
+    const s = await getSession();
+    if (!s) throw new Error(msg('errLocked'));
+    return s;
+  },
+  needsSavePassword: false,
+  verifyStegoPassword: async (pw) => {
+    const s = await getSession();
+    return s ? verifyStegoPassword(s.keyBlock, pw) : false;
+  },
+};
+
+function enterGuided(): void {
+  if (!wizard) wizard = createWizard(wizardRoot, wizardEnv);
+  else wizard.reset();
+  view = 'guided';
+  void savePrefs({ workflow: 'guided' });
+  void refreshState();
+}
+function enterExpert(): void {
+  view = 'expert';
+  void savePrefs({ workflow: 'expert' });
+  void refreshState();
+}
+function enterChooser(): void {
+  view = 'chooser';
+  void refreshState();
+}
+
 async function refreshState(): Promise<void> {
   const [hasKey, session] = await Promise.all([isKeySet(), getSession()]);
+  const unlocked = hasKey && session !== null;
   show(noKeySection, !hasKey);
   show(lockedSection, hasKey && !session);
-  show(saveSection, hasKey && session !== null);
+  show(chooserSection, unlocked && view === 'chooser');
+  show(expertView, unlocked && view === 'expert');
+  show(saveSection, unlocked);
+  show(wizardRoot, unlocked && view === 'guided');
+  show(workflowsBtn, unlocked && view !== 'chooser');
   setPill(!hasKey ? 'none' : session ? 'unlocked' : 'locked');
 }
 
@@ -168,6 +242,10 @@ settingsModal.addEventListener('click', (e) => {
 });
 settingsModal.addEventListener('close', () => void refreshState());
 wireKeyManager(() => void refreshState());
+
+el<HTMLButtonElement>('choose-guided').addEventListener('click', enterGuided);
+el<HTMLButtonElement>('choose-expert').addEventListener('click', enterExpert);
+workflowsBtn.addEventListener('click', enterChooser);
 
 unlockBtn.addEventListener('click', async () => {
   if (!unlockPw.value) return setStatus(unlockStatus, msg('errNoPassword'), true);
@@ -230,6 +308,7 @@ async function updateEstimate(): Promise<void> {
     return;
   }
   const dest = selectedDest();
+  if (dest === 'gallery') return; // its estimate line is hidden — nothing to compute
   if (dest === 'binary') {
     // A single file, whatever the size — show that instead of an image count.
     estimate.textContent = '1';
@@ -272,95 +351,22 @@ wireDropzone(restoreDrop, restoreFiles, () =>
 );
 wireDropzone(coverDrop, coverFile, () => reflectFile(coverDrop, coverDzFile, coverFile));
 wireDropzone(keyDrop, restoreKey, () => reflectFile(keyDrop, keyDzFile, restoreKey));
+wireDropzone(galleryCoversDrop, galleryCovers, () =>
+  reflectFiles(galleryCoversDrop, galleryCoversName, galleryCovers),
+);
 
-saveBtn.addEventListener('click', async () => {
-  const session = await getSession();
-  if (!session) return setStatus(saveStatus, msg('errLocked'), true);
-  const file = saveFile.files?.[0];
-  if (!file) return setStatus(saveStatus, msg('errNoFile'), true);
+for (const radio of document.querySelectorAll('input[name="restore-mode"]')) {
+  radio.addEventListener('change', reflectRestoreMode);
+}
+reflectRestoreMode();
 
-  const keyMode = selectedKeyMode();
-  const dest = selectedDest();
-  const date = new Date().toISOString().slice(0, 10);
-  const useLabel = addBand.checked;
-  const title = useLabel ? bandTitle.value.trim() : '';
-
-  // Stego hides the *managed* key block in a cover photo. It must be keyed by
-  // the vault password (the same one that unwraps the block), so restore — which
-  // uses one password for both the stego extraction and the unwrap — works.
-  let stego: { cover: File; password: string } | undefined;
-  if (keyMode === 'stego') {
-    if (dest === 'cloud') return setStatus(saveStatus, msg('errStegoCloud'), true);
-    const cover = coverFile.files?.[0];
-    if (!cover) return setStatus(saveStatus, msg('errNoCover'), true);
-    if (!stegoPw.value) return setStatus(saveStatus, msg('errNoPassword'), true);
-    try {
-      // Verify the typed password actually unlocks this device's key, so the
-      // stego image can never be keyed by a password that won't restore it.
-      await unlockKeyBlock(parseKeyBlock(session.keyBlock), stegoPw.value);
-    } catch {
-      return setStatus(saveStatus, msg('errWrongPassword'), true);
-    }
-    stego = { cover, password: stegoPw.value };
-  }
-
+/** Run a prepared save request through the shared controller, driving the UI. */
+async function doSave(req: SaveRequest): Promise<void> {
   saveBtn.disabled = true;
   show(saveResult, false);
   setStatus(saveStatus, msg('statusSaving'));
   try {
-    let note: string;
-    if (dest === 'cloud') {
-      const { imageCount, albumTitle } = await saveToPhotos(file, session, {
-        keyMode,
-        title: title || undefined,
-        date,
-      });
-      note = msg('statusSavedCloud', [String(imageCount), albumTitle]);
-    } else if (dest === 'paper') {
-      const { saveFileToPaper } = await import('./paper');
-      const { imageCount } = await saveFileToPaper(file, session, {
-        keyMode,
-        title: title || undefined,
-        date,
-        includeInstructions: addInstructions.checked,
-        passwordHint: pwHint.value.trim() || undefined,
-        keyLocation: keyLocation.value.trim() || undefined,
-        stego,
-        locale: browser.i18n.getUILanguage(),
-      });
-      note = msg('statusSavedPdf', String(imageCount));
-    } else if (dest === 'binary') {
-      const { variant } = await saveFileToBinary(file, session, {
-        keyMode,
-        variant: selectedVariant(),
-        stego,
-      });
-      const savedKey =
-        keyMode === 'embedded'
-          ? 'statusSavedBinary'
-          : keyMode === 'stego'
-            ? 'statusSavedBinaryStego'
-            : 'statusSavedBinaryKeyfile';
-      note = msg(
-        savedKey,
-        msg(variant === 'branded' ? 'binaryVariantBranded' : 'binaryVariantDisguised'),
-      );
-    } else {
-      const label = useLabel ? { title, date } : undefined;
-      const { imageCount } = await saveFileToDisk(file, session, {
-        keyMode,
-        label,
-        asZip: asZip.checked,
-        stego,
-      });
-      const savedKey =
-        keyMode === 'embedded'
-          ? 'statusSaved'
-          : keyMode === 'stego'
-            ? 'statusSavedStego'
-            : 'statusSavedKeyfile';
-      note = msg(savedKey, String(imageCount));
-    }
+    const { note } = await runSave(req, msg);
     setStatus(saveStatus, '');
     saveResultNote.textContent = note;
     show(saveResult, true);
@@ -369,6 +375,59 @@ saveBtn.addEventListener('click', async () => {
   } finally {
     saveBtn.disabled = false;
   }
+}
+
+saveBtn.addEventListener('click', async () => {
+  const dest = selectedDest();
+  const file = saveFile.files?.[0];
+  if (!file) return setStatus(saveStatus, msg('errNoFile'), true);
+
+  // Gallery is self-contained: its own password seeds its key, so it needs
+  // neither the managed session key nor the other destination options.
+  if (dest === 'gallery') {
+    const covers = galleryCovers.files ? Array.from(galleryCovers.files) : [];
+    if (covers.length === 0) return setStatus(saveStatus, msg('errNoCovers'), true);
+    if (!gallerySavePw.value) return setStatus(saveStatus, msg('errNoPassword'), true);
+    await doSave({ dest, file, covers, galleryPassword: gallerySavePw.value });
+    return;
+  }
+
+  const session = await getSession();
+  if (!session) return setStatus(saveStatus, msg('errLocked'), true);
+  const keyMode = selectedKeyMode();
+  const date = new Date().toISOString().slice(0, 10);
+  const useLabel = addBand.checked;
+  const title = useLabel ? bandTitle.value.trim() : '';
+
+  // Stego hides the *managed* key block in a cover photo. It must be keyed by the
+  // vault password (the same one that unwraps the block), so restore — which uses
+  // one password for both the stego extraction and the unwrap — works.
+  let stego: StegoInput | undefined;
+  if (keyMode === 'stego') {
+    if (dest === 'cloud') return setStatus(saveStatus, msg('errStegoCloud'), true);
+    const cover = coverFile.files?.[0];
+    if (!cover) return setStatus(saveStatus, msg('errNoCover'), true);
+    if (!stegoPw.value) return setStatus(saveStatus, msg('errNoPassword'), true);
+    if (!(await verifyStegoPassword(session.keyBlock, stegoPw.value))) {
+      return setStatus(saveStatus, msg('errWrongPassword'), true);
+    }
+    stego = { cover, password: stegoPw.value };
+  }
+
+  await doSave({
+    dest,
+    file,
+    key: session,
+    keyMode,
+    label: useLabel ? { title, date } : undefined,
+    asZip: asZip.checked,
+    variant: selectedVariant(),
+    includeInstructions: addInstructions.checked,
+    passwordHint: pwHint.value.trim() || undefined,
+    keyLocation: keyLocation.value.trim() || undefined,
+    stego,
+    locale: browser.i18n.getUILanguage(),
+  });
 });
 
 restoreBtn.addEventListener('click', async () => {
@@ -380,10 +439,17 @@ restoreBtn.addEventListener('click', async () => {
   show(restoreResult, false);
   setStatus(restoreStatus, msg('statusRestoring'));
   try {
-    const keyFile = restoreKey.files?.[0];
-    const { filename } = await restoreFileFromDisk(files, restorePw.value, keyFile);
+    const { note } = await runRestore(
+      {
+        mode: selectedRestoreMode(),
+        files,
+        password: restorePw.value,
+        keyFile: restoreKey.files?.[0],
+      },
+      msg,
+    );
     setStatus(restoreStatus, '');
-    restoreResultNote.textContent = msg('statusRestored', filename);
+    restoreResultNote.textContent = note;
     show(restoreResult, true);
   } catch (err) {
     setStatus(restoreStatus, friendlyError(err), true);
@@ -396,82 +462,6 @@ restoreBtn.addEventListener('click', async () => {
 // flow — run the whole Photos restore in its own persistent tab.
 restorePhotosBtn.addEventListener('click', () => {
   void browser.tabs.create({ url: browser.runtime.getURL('ui/photos.html') });
-});
-
-// --- Gallery Mode (SPEC §9): its own password, independent of the managed key.
-
-const galleryFile = el<HTMLInputElement>('gallery-file');
-const galleryFileDrop = el('gallery-file-drop');
-const galleryFileName = el('gallery-file-name');
-const galleryCovers = el<HTMLInputElement>('gallery-covers');
-const galleryCoversDrop = el('gallery-covers-drop');
-const galleryCoversName = el('gallery-covers-name');
-const gallerySavePw = el<HTMLInputElement>('gallery-save-pw');
-const gallerySaveBtn = el<HTMLButtonElement>('gallery-save-btn');
-const gallerySaveStatus = el('gallery-save-status');
-const gallerySaveResult = el('gallery-save-result');
-const gallerySaveResultNote = el('gallery-save-result-note');
-
-const galleryRestoreFiles = el<HTMLInputElement>('gallery-restore-files');
-const galleryRestoreDrop = el('gallery-restore-drop');
-const galleryRestoreName = el('gallery-restore-name');
-const galleryRestorePw = el<HTMLInputElement>('gallery-restore-pw');
-const galleryRestoreBtn = el<HTMLButtonElement>('gallery-restore-btn');
-const galleryRestoreStatus = el('gallery-restore-status');
-const galleryRestoreResult = el('gallery-restore-result');
-const galleryRestoreResultNote = el('gallery-restore-result-note');
-
-wireDropzone(galleryFileDrop, galleryFile, () => {
-  reflectFile(galleryFileDrop, galleryFileName, galleryFile);
-  show(gallerySaveResult, false);
-});
-wireDropzone(galleryCoversDrop, galleryCovers, () =>
-  reflectFiles(galleryCoversDrop, galleryCoversName, galleryCovers),
-);
-wireDropzone(galleryRestoreDrop, galleryRestoreFiles, () =>
-  reflectFiles(galleryRestoreDrop, galleryRestoreName, galleryRestoreFiles),
-);
-
-gallerySaveBtn.addEventListener('click', async () => {
-  const file = galleryFile.files?.[0];
-  if (!file) return setStatus(gallerySaveStatus, msg('errNoFile'), true);
-  const covers = galleryCovers.files ? Array.from(galleryCovers.files) : [];
-  if (covers.length === 0) return setStatus(gallerySaveStatus, msg('errNoCovers'), true);
-  if (!gallerySavePw.value) return setStatus(gallerySaveStatus, msg('errNoPassword'), true);
-
-  gallerySaveBtn.disabled = true;
-  show(gallerySaveResult, false);
-  setStatus(gallerySaveStatus, msg('statusGallerySaving'));
-  try {
-    const res = await saveGalleryToDisk(file, covers, gallerySavePw.value);
-    setStatus(gallerySaveStatus, '');
-    gallerySaveResultNote.textContent = msg('statusGallerySaved', String(res.imageCount));
-    show(gallerySaveResult, true);
-  } catch (err) {
-    setStatus(gallerySaveStatus, friendlyError(err), true);
-  } finally {
-    gallerySaveBtn.disabled = false;
-  }
-});
-
-galleryRestoreBtn.addEventListener('click', async () => {
-  const files = galleryRestoreFiles.files ? Array.from(galleryRestoreFiles.files) : [];
-  if (files.length === 0) return setStatus(galleryRestoreStatus, msg('errNoImages'), true);
-  if (!galleryRestorePw.value) return setStatus(galleryRestoreStatus, msg('errNoPassword'), true);
-
-  galleryRestoreBtn.disabled = true;
-  show(galleryRestoreResult, false);
-  setStatus(galleryRestoreStatus, msg('statusGalleryRestoring'));
-  try {
-    const { filename } = await restoreGalleryFromDisk(files, galleryRestorePw.value);
-    setStatus(galleryRestoreStatus, '');
-    galleryRestoreResultNote.textContent = msg('statusRestored', filename);
-    show(galleryRestoreResult, true);
-  } catch (err) {
-    setStatus(galleryRestoreStatus, friendlyError(err), true);
-  } finally {
-    galleryRestoreBtn.disabled = false;
-  }
 });
 
 void loadPrefs();

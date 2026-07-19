@@ -1,9 +1,10 @@
 /**
  * Web app entry — a standalone, install-free version of StegoShard's offline
- * core (Disk + Paper). It reuses the exact same core, codec, and disk/paper
- * flows as the extension; it just generates a fresh vault key per save (the
- * wrapped key travels with the images or as a .key file) instead of a managed
- * key store. Everything runs locally in the browser; nothing is uploaded.
+ * core (Disk + Paper + Gallery). It reuses the exact same core, codec, and
+ * disk/paper flows as the extension via the shared save/restore controllers; it
+ * just generates a fresh vault key per save (the wrapped key travels with the
+ * images or as a .key file) instead of a managed key store. Everything runs
+ * locally in the browser; nothing is uploaded.
  */
 
 import {
@@ -16,12 +17,9 @@ import {
   type VaultKey,
 } from '@core';
 import { el, pick, reflectFiles, setStatus, show, wireDropzone } from '../ui/domhelpers';
-import {
-  saveFileToDisk,
-  restoreFileFromDisk,
-  saveGalleryToDisk,
-  restoreGalleryFromDisk,
-} from '../ui/disk';
+import { runSave, type SaveRequest, type StegoInput } from '../ui/save-controller';
+import { runRestore, type RestoreMode } from '../ui/restore-controller';
+import { createWizard, type Wizard, type WizardEnv } from '../ui/wizard';
 import { currentLocale, localizeDom, msg, friendlyError, wireLanguageSelect } from './i18n';
 import { capturedCount, capturedPayloads, clearCaptured, wireCamera } from './camera';
 
@@ -34,27 +32,32 @@ wireLanguageSelect(el<HTMLSelectElement>('lang-select'), () => {
   // should persist (the camera capture count) are re-rendered explicitly.
   setStatus(saveStatus, '');
   setStatus(restoreStatus, '');
-  setStatus(gallerySaveStatus, '');
-  setStatus(galleryRestoreStatus, '');
   show(saveResult, false);
   show(restoreResult, false);
-  show(gallerySaveResult, false);
-  show(galleryRestoreResult, false);
   reflectCaptured(capturedCount());
+  // The wizard renders its labels at navigation time; rebuild it in the new language.
+  if (view === 'guided') wizard?.reset();
 });
 
-type Dest = 'disk' | 'paper';
+type Dest = 'disk' | 'paper' | 'gallery';
 
 const saveFile = el<HTMLInputElement>('save-file');
 const fileDrop = el('file-drop');
 const dzFile = el('dz-file');
 const savePw = el<HTMLInputElement>('save-pw');
 const estimate = el('estimate');
+const estimateLine = el('estimate-line');
+const keymodeFields = el('keymode-fields');
 const stegoFields = el('stego-fields');
 const coverDrop = el('cover-drop');
 const coverFile = el<HTMLInputElement>('cover-file');
 const coverDzFile = el('cover-dz-file');
+const galleryFields = el('gallery-fields');
+const galleryCovers = el<HTMLInputElement>('gallery-covers');
+const galleryCoversDrop = el('gallery-covers-drop');
+const galleryCoversName = el('gallery-covers-name');
 const addBand = el<HTMLInputElement>('add-band');
+const addBandLabel = el('add-band-label');
 const bandFields = el('band-fields');
 const bandTitle = el<HTMLInputElement>('band-title');
 const asZip = el<HTMLInputElement>('as-zip');
@@ -80,9 +83,12 @@ const restoreBtn = el<HTMLButtonElement>('restore-btn');
 const restoreStatus = el('restore-status');
 const restoreResult = el('restore-result');
 const restoreResultNote = el('restore-result-note');
+const restoreAdvanced = el('restore-advanced');
+const restoreGalleryHint = el('restore-gallery-hint');
 
 const selectedDest = () => pick<Dest>('dest', 'disk');
 const selectedKeyMode = () => pick<KeyMode>('keymode', 'embedded');
+const selectedRestoreMode = () => pick<RestoreMode>('restore-mode', 'standard');
 
 function reflectFile(drop: HTMLElement, chip: HTMLElement, input: HTMLInputElement): void {
   const file = input.files?.[0];
@@ -91,14 +97,25 @@ function reflectFile(drop: HTMLElement, chip: HTMLElement, input: HTMLInputEleme
 }
 
 function reflectDestination(): void {
-  const paper = selectedDest() === 'paper';
-  show(zipField, !paper);
+  const dest = selectedDest();
+  const gallery = dest === 'gallery';
+  const paper = dest === 'paper';
+  // Gallery has its own pipeline: no key mode, band, zip, or image estimate.
+  // (Its "password" is the always-visible save password field.)
+  show(galleryFields, gallery);
+  show(keymodeFields, !gallery);
+  show(estimateLine, !gallery);
+  show(zipField, !gallery && !paper);
+  show(addBandLabel, !gallery);
+  show(bandFields, !gallery && addBand.checked);
   show(paperFields, paper);
+  reflectKeyMode();
 }
 
 async function updateEstimate(): Promise<void> {
   const file = saveFile.files?.[0];
   if (!file) return void (estimate.textContent = '—');
+  if (selectedDest() === 'gallery') return; // estimate line is hidden for gallery
   estimate.textContent = '…';
   try {
     const content = new Uint8Array(await file.arrayBuffer());
@@ -114,7 +131,14 @@ async function updateEstimate(): Promise<void> {
 }
 
 function reflectKeyMode(): void {
-  show(stegoFields, selectedKeyMode() === 'stego');
+  show(stegoFields, selectedDest() !== 'gallery' && selectedKeyMode() === 'stego');
+}
+
+/** Standard restore uses a key file; gallery restore is password-only. */
+function reflectRestoreMode(): void {
+  const gallery = selectedRestoreMode() === 'gallery';
+  show(restoreGalleryHint, gallery);
+  show(restoreAdvanced, !gallery);
 }
 
 addBand.addEventListener('change', () => show(bandFields, addBand.checked));
@@ -130,6 +154,9 @@ for (const r of document.querySelectorAll('input[name="keymode"]')) {
     void updateEstimate();
   });
 }
+for (const r of document.querySelectorAll('input[name="restore-mode"]')) {
+  r.addEventListener('change', reflectRestoreMode);
+}
 
 wireDropzone(fileDrop, saveFile, () => {
   reflectFile(fileDrop, dzFile, saveFile);
@@ -137,14 +164,20 @@ wireDropzone(fileDrop, saveFile, () => {
   void updateEstimate();
 });
 wireDropzone(coverDrop, coverFile, () => reflectFile(coverDrop, coverDzFile, coverFile));
+wireDropzone(galleryCoversDrop, galleryCovers, () =>
+  reflectFiles(galleryCoversDrop, galleryCoversName, galleryCovers),
+);
 wireDropzone(restoreDrop, restoreFiles, () =>
   reflectFile(restoreDrop, restoreDzFile, restoreFiles),
 );
 wireDropzone(keyDrop, restoreKey, () => reflectFile(keyDrop, keyDzFile, restoreKey));
 
+// Subscribers notified whenever the capture count changes (e.g. the wizard).
+const cameraCountSubs: ((count: number) => void)[] = [];
 function reflectCaptured(count: number): void {
   show(cameraCaptured, count > 0);
   cameraCaptured.textContent = count > 0 ? msg('cameraCount', String(count)) : '';
+  for (const sub of cameraCountSubs) sub(count);
 }
 wireCamera(
   {
@@ -164,55 +197,13 @@ async function makeKey(password: string): Promise<VaultKey> {
   return { dek, keyBlock: serializeKeyBlock(block) };
 }
 
-saveBtn.addEventListener('click', async () => {
-  const file = saveFile.files?.[0];
-  if (!file) return setStatus(saveStatus, msg('errNoFile'), true);
-  if (!savePw.value) return setStatus(saveStatus, msg('errNoPassword'), true);
-
-  const keyMode = selectedKeyMode();
-  const dest = selectedDest();
-  const cover = coverFile.files?.[0];
-  if (keyMode === 'stego' && !cover) return setStatus(saveStatus, msg('errNoCover'), true);
-  const stego = keyMode === 'stego' && cover ? { cover, password: savePw.value } : undefined;
-  const date = new Date().toISOString().slice(0, 10);
-  const useLabel = addBand.checked;
-  const title = useLabel ? bandTitle.value.trim() : '';
-
+/** Build a save request (creating a fresh key inside the try) and run it. */
+async function doSave(build: () => Promise<SaveRequest>): Promise<void> {
   saveBtn.disabled = true;
   show(saveResult, false);
   setStatus(saveStatus, msg('statusSaving'));
   try {
-    const key = await makeKey(savePw.value);
-    let note: string;
-    if (dest === 'paper') {
-      const { saveFileToPaper } = await import('../ui/paper');
-      const { imageCount } = await saveFileToPaper(file, key, {
-        keyMode,
-        title: title || undefined,
-        date,
-        includeInstructions: addInstructions.checked,
-        passwordHint: pwHint.value.trim() || undefined,
-        keyLocation: keyLocation.value.trim() || undefined,
-        stego,
-        locale: currentLocale(),
-      });
-      note = msg('statusSavedPdf', String(imageCount));
-    } else {
-      const label = useLabel ? { title, date } : undefined;
-      const { imageCount } = await saveFileToDisk(file, key, {
-        keyMode,
-        label,
-        asZip: asZip.checked,
-        stego,
-      });
-      const savedKey =
-        keyMode === 'embedded'
-          ? 'statusSaved'
-          : keyMode === 'stego'
-            ? 'statusSavedStego'
-            : 'statusSavedKeyfile';
-      note = msg(savedKey, String(imageCount));
-    }
+    const { note } = await runSave(await build(), msg);
     setStatus(saveStatus, '');
     saveResultNote.textContent = note;
     show(saveResult, true);
@@ -221,6 +212,45 @@ saveBtn.addEventListener('click', async () => {
   } finally {
     saveBtn.disabled = false;
   }
+}
+
+saveBtn.addEventListener('click', async () => {
+  const dest = selectedDest();
+  const file = saveFile.files?.[0];
+  if (!file) return setStatus(saveStatus, msg('errNoFile'), true);
+  if (!savePw.value) return setStatus(saveStatus, msg('errNoPassword'), true);
+
+  if (dest === 'gallery') {
+    const covers = galleryCovers.files ? Array.from(galleryCovers.files) : [];
+    if (covers.length === 0) return setStatus(saveStatus, msg('errNoCovers'), true);
+    await doSave(async () => ({ dest, file, covers, galleryPassword: savePw.value }));
+    return;
+  }
+
+  const keyMode = selectedKeyMode();
+  const cover = coverFile.files?.[0];
+  if (keyMode === 'stego' && !cover) return setStatus(saveStatus, msg('errNoCover'), true);
+  // On the web the vault key is minted from the save password, so the stego
+  // password is that same password (no separate managed key to reconcile with).
+  const stego: StegoInput | undefined =
+    keyMode === 'stego' && cover ? { cover, password: savePw.value } : undefined;
+  const date = new Date().toISOString().slice(0, 10);
+  const useLabel = addBand.checked;
+  const title = useLabel ? bandTitle.value.trim() : '';
+
+  await doSave(async () => ({
+    dest,
+    file,
+    key: await makeKey(savePw.value),
+    keyMode,
+    label: useLabel ? { title, date } : undefined,
+    asZip: asZip.checked,
+    includeInstructions: addInstructions.checked,
+    passwordHint: pwHint.value.trim() || undefined,
+    keyLocation: keyLocation.value.trim() || undefined,
+    stego,
+    locale: currentLocale(),
+  }));
 });
 
 restoreBtn.addEventListener('click', async () => {
@@ -234,14 +264,18 @@ restoreBtn.addEventListener('click', async () => {
   show(restoreResult, false);
   setStatus(restoreStatus, msg('statusRestoring'));
   try {
-    const { filename } = await restoreFileFromDisk(
-      files,
-      restorePw.value,
-      restoreKey.files?.[0],
-      capturedPayloads(),
+    const { note } = await runRestore(
+      {
+        mode: selectedRestoreMode(),
+        files,
+        password: restorePw.value,
+        keyFile: restoreKey.files?.[0],
+        extraPayloads: capturedPayloads(),
+      },
+      msg,
     );
     setStatus(restoreStatus, '');
-    restoreResultNote.textContent = msg('statusRestored', filename);
+    restoreResultNote.textContent = note;
     show(restoreResult, true);
     clearCaptured();
     reflectCaptured(0);
@@ -252,81 +286,75 @@ restoreBtn.addEventListener('click', async () => {
   }
 });
 
-// --- Gallery Mode (SPEC §9) --------------------------------------------------
-
-const galleryFile = el<HTMLInputElement>('gallery-file');
-const galleryFileDrop = el('gallery-file-drop');
-const galleryFileName = el('gallery-file-name');
-const galleryCovers = el<HTMLInputElement>('gallery-covers');
-const galleryCoversDrop = el('gallery-covers-drop');
-const galleryCoversName = el('gallery-covers-name');
-const gallerySavePw = el<HTMLInputElement>('gallery-save-pw');
-const gallerySaveBtn = el<HTMLButtonElement>('gallery-save-btn');
-const gallerySaveStatus = el('gallery-save-status');
-const gallerySaveResult = el('gallery-save-result');
-const gallerySaveResultNote = el('gallery-save-result-note');
-
-const galleryRestoreFiles = el<HTMLInputElement>('gallery-restore-files');
-const galleryRestoreDrop = el('gallery-restore-drop');
-const galleryRestoreName = el('gallery-restore-name');
-const galleryRestorePw = el<HTMLInputElement>('gallery-restore-pw');
-const galleryRestoreBtn = el<HTMLButtonElement>('gallery-restore-btn');
-const galleryRestoreStatus = el('gallery-restore-status');
-const galleryRestoreResult = el('gallery-restore-result');
-const galleryRestoreResultNote = el('gallery-restore-result-note');
-
-wireDropzone(galleryFileDrop, galleryFile, () => {
-  reflectFile(galleryFileDrop, galleryFileName, galleryFile);
-  show(gallerySaveResult, false);
-});
-wireDropzone(galleryCoversDrop, galleryCovers, () =>
-  reflectFiles(galleryCoversDrop, galleryCoversName, galleryCovers),
-);
-wireDropzone(galleryRestoreDrop, galleryRestoreFiles, () =>
-  reflectFiles(galleryRestoreDrop, galleryRestoreName, galleryRestoreFiles),
-);
-
-gallerySaveBtn.addEventListener('click', async () => {
-  const file = galleryFile.files?.[0];
-  if (!file) return setStatus(gallerySaveStatus, msg('errNoFile'), true);
-  const covers = galleryCovers.files ? Array.from(galleryCovers.files) : [];
-  if (covers.length === 0) return setStatus(gallerySaveStatus, msg('errNoCovers'), true);
-  if (!gallerySavePw.value) return setStatus(gallerySaveStatus, msg('errNoPassword'), true);
-
-  gallerySaveBtn.disabled = true;
-  show(gallerySaveResult, false);
-  setStatus(gallerySaveStatus, msg('statusGallerySaving'));
-  try {
-    const res = await saveGalleryToDisk(file, covers, gallerySavePw.value);
-    setStatus(gallerySaveStatus, '');
-    gallerySaveResultNote.textContent = msg('statusGallerySaved', String(res.imageCount));
-    show(gallerySaveResult, true);
-  } catch (err) {
-    setStatus(gallerySaveStatus, friendlyError(err), true);
-  } finally {
-    gallerySaveBtn.disabled = false;
-  }
-});
-
-galleryRestoreBtn.addEventListener('click', async () => {
-  const files = galleryRestoreFiles.files ? Array.from(galleryRestoreFiles.files) : [];
-  if (files.length === 0) return setStatus(galleryRestoreStatus, msg('errNoImages'), true);
-  if (!galleryRestorePw.value) return setStatus(galleryRestoreStatus, msg('errNoPassword'), true);
-
-  galleryRestoreBtn.disabled = true;
-  show(galleryRestoreResult, false);
-  setStatus(galleryRestoreStatus, msg('statusGalleryRestoring'));
-  try {
-    const { filename } = await restoreGalleryFromDisk(files, galleryRestorePw.value);
-    setStatus(galleryRestoreStatus, '');
-    galleryRestoreResultNote.textContent = msg('statusRestored', filename);
-    show(galleryRestoreResult, true);
-  } catch (err) {
-    setStatus(galleryRestoreStatus, friendlyError(err), true);
-  } finally {
-    galleryRestoreBtn.disabled = false;
-  }
-});
-
 reflectDestination();
 reflectKeyMode();
+reflectRestoreMode();
+
+// --- Workflow chooser (Guided vs Expert) ------------------------------------
+
+const chooserSection = el('chooser');
+const expertView = el('expert-view');
+const wizardRoot = el('wizard-root');
+const workflowsBtn = el<HTMLButtonElement>('workflows-btn');
+
+type View = 'chooser' | 'guided' | 'expert';
+let view: View = 'chooser';
+let wizard: Wizard | null = null;
+
+const wizardEnv: WizardEnv = {
+  msg,
+  locale: currentLocale,
+  saveDestinations: ['disk', 'paper', 'gallery'],
+  getSaveKey: (pw) => makeKey(pw),
+  needsSavePassword: true,
+  camera: {
+    open: () => el<HTMLButtonElement>('camera-btn').click(),
+    capturedCount,
+    capturedPayloads,
+    clearCaptured,
+    onCountChange: (cb) => cameraCountSubs.push(cb),
+  },
+};
+
+function showView(): void {
+  show(chooserSection, view === 'chooser');
+  show(expertView, view === 'expert');
+  show(wizardRoot, view === 'guided');
+  show(workflowsBtn, view !== 'chooser');
+}
+
+function rememberWorkflow(w: 'guided' | 'expert'): void {
+  try {
+    localStorage.setItem('stegoshard.workflow', w);
+  } catch {
+    // storage may be unavailable (private mode) — the chooser still works.
+  }
+}
+
+el<HTMLButtonElement>('choose-guided').addEventListener('click', () => {
+  if (!wizard) wizard = createWizard(wizardRoot, wizardEnv);
+  else wizard.reset();
+  view = 'guided';
+  rememberWorkflow('guided');
+  showView();
+});
+el<HTMLButtonElement>('choose-expert').addEventListener('click', () => {
+  view = 'expert';
+  rememberWorkflow('expert');
+  showView();
+});
+workflowsBtn.addEventListener('click', () => {
+  view = 'chooser';
+  showView();
+});
+
+// Highlight the last-used workflow as recommended.
+try {
+  const last = localStorage.getItem('stegoshard.workflow');
+  show(el('rec-guided'), last === 'guided');
+  show(el('rec-expert'), last === 'expert');
+} catch {
+  // ignore — no stored preference
+}
+
+showView();

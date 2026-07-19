@@ -509,6 +509,18 @@
     "message": "File (no images)",
     "description": "Popup: binary (single file) destination."
   },
+  "destGallery": {
+    "message": "Hide in photos (Gallery)",
+    "description": "Popup: Gallery Mode destination — hide the secret across ordinary photos."
+  },
+  "restoreModeStandard": {
+    "message": "Standard",
+    "description": "Restore: standard vault mode (images / zip / pdf / key)."
+  },
+  "restoreModeGallery": {
+    "message": "From photos (Gallery)",
+    "description": "Restore: Gallery Mode — recover from ordinary photos."
+  },
   "binaryVariantHeading": {
     "message": "File type",
     "description": "Popup: label for the binary file-type selector."
@@ -575,6 +587,10 @@
   "galleryIntro": {
     "message": "Split a small secret across several ordinary photos (plus decoys). Losing a few is fine; keep them together and remember your password.",
     "description": "Gallery Mode: short explanation under the heading."
+  },
+  "galleryPasswordHint": {
+    "message": "Gallery uses the password above — it both encrypts the secret and decides where in each photo it hides. There is no key file to keep.",
+    "description": "Gallery Mode: note that the save password is also the gallery password."
   },
   "gallerySecretTitle": {
     "message": "File to hide",
@@ -646,5 +662,161 @@
   "errGalleryRestore": {
     "message": "No secret could be restored from these photos (wrong password, or they aren't a gallery).",
     "description": "Gallery Mode error: nothing restorable."
+  },
+  "btnWorkflows": {
+    "message": "Workflows",
+    "description": "Header button that returns to the workflow chooser."
+  },
+  "chooserTitle": {
+    "message": "How would you like to work?",
+    "description": "Chooser: heading."
+  },
+  "chooserBody": {
+    "message": "Pick the guided steps if you're new, or the all-in-one expert view if you know the tool. You can switch any time.",
+    "description": "Chooser: sub-text."
+  },
+  "workflowGuided": {
+    "message": "Guided",
+    "description": "Chooser: guided workflow option title."
+  },
+  "workflowGuidedDesc": {
+    "message": "Answer a few questions, one step at a time. We propose the right options and ask for files as needed.",
+    "description": "Chooser: guided workflow description."
+  },
+  "workflowExpert": {
+    "message": "Expert",
+    "description": "Chooser: expert workflow option title."
+  },
+  "workflowExpertDesc": {
+    "message": "Everything on one screen, with all options exposed. Fastest once you know your way around.",
+    "description": "Chooser: expert workflow description."
+  },
+  "workflowRecommended": {
+    "message": "Last used",
+    "description": "Chooser: badge marking the previously chosen workflow."
+  },
+  "wizStep": {
+    "message": "Step $STEP$ of $TOTAL$",
+    "description": "Wizard: step counter.",
+    "placeholders": {
+      "step": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "wizBack": {
+    "message": "Back",
+    "description": "Wizard: go to the previous step."
+  },
+  "wizNext": {
+    "message": "Next",
+    "description": "Wizard: go to the next step."
+  },
+  "wizStartOver": {
+    "message": "Start over",
+    "description": "Wizard: begin a new run after finishing."
+  },
+  "wizActionTitle": {
+    "message": "What do you want to do?",
+    "description": "Wizard: first step question."
+  },
+  "wizActionSave": {
+    "message": "Save a secret",
+    "description": "Wizard: save action option."
+  },
+  "wizActionSaveDesc": {
+    "message": "Encrypt a file and turn it into images (or hide it in photos).",
+    "description": "Wizard: save action description."
+  },
+  "wizActionRestore": {
+    "message": "Restore a secret",
+    "description": "Wizard: restore action option."
+  },
+  "wizActionRestoreDesc": {
+    "message": "Recover the original file from images, a PDF, a .zip, or photos.",
+    "description": "Wizard: restore action description."
+  },
+  "wizFileTitle": {
+    "message": "Which file do you want to protect?",
+    "description": "Wizard: save file step."
+  },
+  "wizDestTitle": {
+    "message": "Where should it live?",
+    "description": "Wizard: destination step."
+  },
+  "wizKeyTitle": {
+    "message": "How should the key be handled?",
+    "description": "Wizard: key-mode step."
+  },
+  "wizPasswordTitle": {
+    "message": "Choose a password",
+    "description": "Wizard: password step title."
+  },
+  "wizPasswordDesc": {
+    "message": "You'll need this exact password to restore. There is no recovery if you lose it.",
+    "description": "Wizard: password step help."
+  },
+  "wizRestoreModeTitle": {
+    "message": "What are you restoring from?",
+    "description": "Wizard: restore-mode step."
+  },
+  "wizRestoreStandardDesc": {
+    "message": "StegoShard images, a printed PDF, or a .zip made by Save.",
+    "description": "Wizard: standard restore description."
+  },
+  "wizRestoreGalleryDesc": {
+    "message": "Ordinary photos that secretly carry a Gallery-Mode secret.",
+    "description": "Wizard: gallery restore description."
+  },
+  "wizRestoreFilesTitle": {
+    "message": "Add the files to restore from",
+    "description": "Wizard: restore files step."
+  },
+  "wizReviewTitle": {
+    "message": "Ready when you are",
+    "description": "Wizard: final review step."
+  },
+  "wizReviewFile": {
+    "message": "File",
+    "description": "Wizard: review label for the chosen file."
+  },
+  "wizRunSave": {
+    "message": "Create the images",
+    "description": "Wizard: run the save."
+  },
+  "wizRunRestore": {
+    "message": "Restore the file",
+    "description": "Wizard: run the restore."
+  },
+  "destDiskDesc": {
+    "message": "A set of PNG images (or one .zip) to keep on disk or in the cloud.",
+    "description": "Wizard: disk destination description."
+  },
+  "destPaperDesc": {
+    "message": "A printable PDF — one QR per page, survives printing and scanning.",
+    "description": "Wizard: paper destination description."
+  },
+  "destBinaryDesc": {
+    "message": "One opaque file instead of images — best for larger secrets.",
+    "description": "Wizard: binary destination description."
+  },
+  "destCloudDesc": {
+    "message": "Upload the images straight to a Google Photos album.",
+    "description": "Wizard: cloud destination description."
+  },
+  "destGalleryDesc": {
+    "message": "Hidden across a set of your own ordinary photos, plus decoys.",
+    "description": "Wizard: gallery destination description."
+  },
+  "keyModeEmbeddedDesc": {
+    "message": "The key travels inside the images. Simplest — one password is all you keep.",
+    "description": "Wizard: embedded key-mode description."
+  },
+  "keyModeKeyfileDesc": {
+    "message": "A separate .key file, stored apart from the images. Both are needed to restore.",
+    "description": "Wizard: keyfile key-mode description."
+  },
+  "keyModeStegoDesc": {
+    "message": "The key is hidden inside an ordinary photo you provide. Keep that photo to restore.",
+    "description": "Wizard: stego key-mode description."
   }
 }
