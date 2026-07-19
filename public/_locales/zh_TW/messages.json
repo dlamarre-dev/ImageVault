@@ -470,5 +470,84 @@
         "content": "$1"
       }
     }
+  },
+  "galleryHeading": {
+    "message": "相簿 — 藏在照片中",
+    "description": "Gallery Mode: save card heading."
+  },
+  "galleryIntro": {
+    "message": "將一個小秘密分散到多張普通照片中（含誘餌）。遺失幾張沒關係；請將它們保存在一起並記住密碼。",
+    "description": "Gallery Mode: short explanation under the heading."
+  },
+  "gallerySecretTitle": {
+    "message": "要隱藏的檔案",
+    "description": "Gallery Mode: label for the file-to-hide dropzone."
+  },
+  "galleryCoversTitle": {
+    "message": "封面照片（5 張以上）",
+    "description": "Gallery Mode: label for the cover-photos picker."
+  },
+  "galleryRestoreHeading": {
+    "message": "相簿 — 從照片還原",
+    "description": "Gallery Mode: restore card heading."
+  },
+  "galleryPhotosTitle": {
+    "message": "照片（資料夾或選取）",
+    "description": "Gallery Mode: label for the restore photo picker."
+  },
+  "btnGallerySave": {
+    "message": "藏入照片",
+    "description": "Gallery Mode: save button."
+  },
+  "btnGalleryRestore": {
+    "message": "從照片還原",
+    "description": "Gallery Mode: restore button."
+  },
+  "statusGallerySaving": {
+    "message": "正在將秘密藏入你的照片…",
+    "description": "Gallery Mode: status while saving."
+  },
+  "statusGallerySaved": {
+    "message": "已存入 $COUNT$ 張照片。請將它們保存在一起並妥善保管密碼。",
+    "description": "Gallery Mode: status after saving.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusGalleryRestoring": {
+    "message": "正在分析照片並還原…",
+    "description": "Gallery Mode: status while restoring."
+  },
+  "errNoCovers": {
+    "message": "請新增封面照片（5 張以上）。",
+    "description": "Gallery Mode validation: no cover photos chosen."
+  },
+  "errGalleryTooFew": {
+    "message": "照片不足 — 請至少新增 $COUNT$ 張。",
+    "description": "Gallery Mode error: not enough photos.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryTooLarge": {
+    "message": "此秘密對相簿模式而言太大；請使用較小的檔案。",
+    "description": "Gallery Mode error: secret too large."
+  },
+  "errGalleryCoverTooSmall": {
+    "message": "照片「$NAME$」太小或太平滑，無法隱藏片段。請使用更大、細節更多的照片。",
+    "description": "Gallery Mode error: a cover photo lacks capacity.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryRestore": {
+    "message": "無法從這些照片還原任何秘密（密碼錯誤，或它們不是相簿）。",
+    "description": "Gallery Mode error: nothing restorable."
   }
 }

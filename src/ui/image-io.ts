@@ -15,6 +15,8 @@ import {
   extractKeyBlockStegoJpeg,
   getCodec,
   isJpeg,
+  type GalleryCover,
+  type GalleryImage,
   type ImageDataLike,
 } from '@core';
 
@@ -185,6 +187,32 @@ export async function extractKeyImage(file: Blob, password: string): Promise<Uin
     return extractKeyBlockStego(img.data, img.width, img.height, password);
   }
   return null;
+}
+
+// --- Gallery Mode cover I/O (SPEC §9) ----------------------------------------
+
+/**
+ * Turn a picked file into a gallery cover. A baseline JPEG is kept as raw bytes
+ * (its DCT coefficients are the carrier and must not be re-encoded); anything
+ * else is decoded to full-resolution RGBA (a cover is never downscaled — gallery
+ * embedding is position-sensitive).
+ */
+export async function fileToGalleryCover(file: File): Promise<GalleryCover> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (isJpeg(bytes)) return { kind: 'jpeg', name: file.name, jpeg: bytes };
+  const img = await fileToImageData(file);
+  return { kind: 'rgba', name: file.name, rgba: img.data, width: img.width, height: img.height };
+}
+
+/** Serialize a produced gallery image to a download blob, keeping its format. */
+export async function galleryImageToBlob(img: GalleryImage): Promise<{ name: string; blob: Blob }> {
+  if (img.kind === 'jpeg') {
+    return { name: img.name, blob: new Blob([img.jpeg as BufferSource], { type: 'image/jpeg' }) };
+  }
+  const data = new Uint8ClampedArray(img.rgba.buffer, img.rgba.byteOffset, img.rgba.byteLength);
+  const blob = await imageDataToPngBlob({ data, width: img.width, height: img.height });
+  const name = /\.png$/i.test(img.name) ? img.name : `${img.name.replace(/\.[^.]+$/, '')}.png`;
+  return { name, blob };
 }
 
 /** Trigger a browser download for a blob. */

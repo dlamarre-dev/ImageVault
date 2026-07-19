@@ -470,5 +470,84 @@
         "content": "$1"
       }
     }
+  },
+  "galleryHeading": {
+    "message": "ギャラリー — 写真に隠す",
+    "description": "Gallery Mode: save card heading."
+  },
+  "galleryIntro": {
+    "message": "小さな秘密を複数の普通の写真に分散させます（おとりを含む）。数枚失っても問題ありません。まとめて保管し、パスワードを覚えておいてください。",
+    "description": "Gallery Mode: short explanation under the heading."
+  },
+  "gallerySecretTitle": {
+    "message": "隠すファイル",
+    "description": "Gallery Mode: label for the file-to-hide dropzone."
+  },
+  "galleryCoversTitle": {
+    "message": "カバー写真（5枚以上）",
+    "description": "Gallery Mode: label for the cover-photos picker."
+  },
+  "galleryRestoreHeading": {
+    "message": "ギャラリー — 写真から復元",
+    "description": "Gallery Mode: restore card heading."
+  },
+  "galleryPhotosTitle": {
+    "message": "写真（フォルダまたは選択）",
+    "description": "Gallery Mode: label for the restore photo picker."
+  },
+  "btnGallerySave": {
+    "message": "写真に隠す",
+    "description": "Gallery Mode: save button."
+  },
+  "btnGalleryRestore": {
+    "message": "写真から復元",
+    "description": "Gallery Mode: restore button."
+  },
+  "statusGallerySaving": {
+    "message": "写真に秘密を隠しています…",
+    "description": "Gallery Mode: status while saving."
+  },
+  "statusGallerySaved": {
+    "message": "$COUNT$枚の写真に保存しました。まとめて保管し、パスワードを大切にしてください。",
+    "description": "Gallery Mode: status after saving.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusGalleryRestoring": {
+    "message": "写真を解析して復元しています…",
+    "description": "Gallery Mode: status while restoring."
+  },
+  "errNoCovers": {
+    "message": "カバー写真を追加してください（5枚以上）。",
+    "description": "Gallery Mode validation: no cover photos chosen."
+  },
+  "errGalleryTooFew": {
+    "message": "写真が足りません。少なくとも$COUNT$枚追加してください。",
+    "description": "Gallery Mode error: not enough photos.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryTooLarge": {
+    "message": "この秘密はギャラリーモードには大きすぎます。より小さいファイルを使ってください。",
+    "description": "Gallery Mode error: secret too large."
+  },
+  "errGalleryCoverTooSmall": {
+    "message": "写真「$NAME$」は小さすぎるか滑らかすぎて断片を隠せません。より大きく、細部の多い写真を使ってください。",
+    "description": "Gallery Mode error: a cover photo lacks capacity.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryRestore": {
+    "message": "これらの写真から秘密を復元できませんでした（パスワードが違うか、ギャラリーではありません）。",
+    "description": "Gallery Mode error: nothing restorable."
   }
 }

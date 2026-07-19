@@ -5,6 +5,10 @@
 
 import {
   FileTooLargeError,
+  GalleryCoverCapacityError,
+  GalleryFileTooLargeError,
+  GalleryRestoreError,
+  GalleryTooFewImagesError,
   MissingKeyError,
   StegoCapacityError,
   StegoCoverFormatError,
@@ -30,6 +34,13 @@ export function friendlyError(
   if (err instanceof TooManyImagesError) {
     return translate('errTooManyImages', [String(err.count), String(err.limit)]);
   }
+  if (err instanceof GalleryTooFewImagesError)
+    return translate('errGalleryTooFew', String(err.needed));
+  if (err instanceof GalleryFileTooLargeError) return translate('errGalleryTooLarge');
+  if (err instanceof GalleryCoverCapacityError) {
+    return translate('errGalleryCoverTooSmall', err.coverName);
+  }
+  if (err instanceof GalleryRestoreError) return translate('errGalleryRestore');
   return errText(err);
 }
 
@@ -46,6 +57,13 @@ export function show(node: HTMLElement, visible: boolean): void {
 export function setStatus(node: HTMLElement, text: string, error = false): void {
   node.textContent = text;
   node.classList.toggle('error', error);
+}
+
+/** Reflect picked file(s) in a dropzone: a single filename, or a count when several. */
+export function reflectFiles(drop: HTMLElement, chip: HTMLElement, input: HTMLInputElement): void {
+  const files = input.files ? Array.from(input.files) : [];
+  drop.classList.toggle('has-file', files.length > 0);
+  chip.textContent = files.length === 1 ? files[0]!.name : files.length ? String(files.length) : '';
 }
 
 /** Value of the checked radio in a group, or a fallback. */

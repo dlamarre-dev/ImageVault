@@ -470,5 +470,84 @@
         "content": "$1"
       }
     }
+  },
+  "galleryHeading": {
+    "message": "Galerie — in Fotos verstecken",
+    "description": "Gallery Mode: save card heading."
+  },
+  "galleryIntro": {
+    "message": "Verteilt ein kleines Geheimnis über mehrere gewöhnliche Fotos (mit Ködern). Einige zu verlieren ist unproblematisch; bewahren Sie sie zusammen auf und merken Sie sich Ihr Passwort.",
+    "description": "Gallery Mode: short explanation under the heading."
+  },
+  "gallerySecretTitle": {
+    "message": "Zu versteckende Datei",
+    "description": "Gallery Mode: label for the file-to-hide dropzone."
+  },
+  "galleryCoversTitle": {
+    "message": "Deckfotos (5 oder mehr)",
+    "description": "Gallery Mode: label for the cover-photos picker."
+  },
+  "galleryRestoreHeading": {
+    "message": "Galerie — aus Fotos wiederherstellen",
+    "description": "Gallery Mode: restore card heading."
+  },
+  "galleryPhotosTitle": {
+    "message": "Die Fotos (ein Ordner oder eine Auswahl)",
+    "description": "Gallery Mode: label for the restore photo picker."
+  },
+  "btnGallerySave": {
+    "message": "In Fotos verstecken",
+    "description": "Gallery Mode: save button."
+  },
+  "btnGalleryRestore": {
+    "message": "Aus Fotos wiederherstellen",
+    "description": "Gallery Mode: restore button."
+  },
+  "statusGallerySaving": {
+    "message": "Geheimnis wird in Ihren Fotos versteckt…",
+    "description": "Gallery Mode: status while saving."
+  },
+  "statusGallerySaved": {
+    "message": "In $COUNT$ Foto(s) gespeichert. Bewahren Sie sie zusammen auf und schützen Sie Ihr Passwort.",
+    "description": "Gallery Mode: status after saving.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "statusGalleryRestoring": {
+    "message": "Fotos werden geprüft und wiederhergestellt…",
+    "description": "Gallery Mode: status while restoring."
+  },
+  "errNoCovers": {
+    "message": "Fügen Sie die Deckfotos hinzu (5 oder mehr).",
+    "description": "Gallery Mode validation: no cover photos chosen."
+  },
+  "errGalleryTooFew": {
+    "message": "Nicht genügend Fotos — fügen Sie mindestens $COUNT$ hinzu.",
+    "description": "Gallery Mode error: not enough photos.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryTooLarge": {
+    "message": "Dieses Geheimnis ist zu groß für den Galeriemodus; verwenden Sie eine kleinere Datei.",
+    "description": "Gallery Mode error: secret too large."
+  },
+  "errGalleryCoverTooSmall": {
+    "message": "Das Foto „$NAME$“ ist zu klein oder zu glatt, um ein Fragment zu verstecken. Verwenden Sie größere, detailreichere Fotos.",
+    "description": "Gallery Mode error: a cover photo lacks capacity.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "errGalleryRestore": {
+    "message": "Aus diesen Fotos konnte kein Geheimnis wiederhergestellt werden (falsches Passwort oder keine Galerie-Bilder).",
+    "description": "Gallery Mode error: nothing restorable."
   }
 }
