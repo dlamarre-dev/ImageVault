@@ -6,11 +6,13 @@
  *   - 'branded'   → [ MAGIC "SSBN" 4 ][ VERSION 1 ][ payload ]. A self-labelling
  *                   blob; easy for the owner to recognize, makes no attempt to
  *                   hide (extension .ssbn).
- *   - 'disguised' → [ SQLite header 16 ][ payload ]. Carries a real file-type
- *                   signature so `file(1)`/extension triage reads it as an
- *                   ordinary app database (extension .db). One extra layer of
- *                   deniability against casual inspection — NOT against a tool
- *                   that actually opens it as SQLite (see docs/CRYPTO-REVIEW.md).
+ *   - 'disguised' → [ complete SQLite DB ][ payload ]. Prepends a real, small
+ *                   SQLite database (a `notes` table with innocuous dummy rows);
+ *                   the payload is appended after the DB's last page. SQLite reads
+ *                   only `page_count` pages and ignores trailing bytes, so the file
+ *                   opens cleanly in `sqlite3` and shows the dummy table (.db).
+ *                   Deniability against a casual *open*, still not a forensic
+ *                   adversary (see docs/CRYPTO-REVIEW.md §6b).
  *
  * The payload is already an authenticated ciphertext (vault blob) or a wrapped
  * key block, so the wrapper adds no secrecy — only packaging. Unwrapping a file
@@ -18,7 +20,7 @@
  * bare payload (e.g. a raw .key), letting AES-GCM be the final arbiter.
  */
 
-import { concatBytes } from './bytes';
+import { concatBytes, fromBase64 } from './bytes';
 
 export type BinaryVariant = 'branded' | 'disguised';
 
@@ -27,24 +29,19 @@ export const BINARY_MAGIC = Uint8Array.from([0x53, 0x53, 0x42, 0x4e]);
 export const BINARY_VERSION = 1;
 
 /**
- * A complete, valid 100-byte SQLite 3 database header (not just the 16-byte magic
- * string). Modern `file(1)`/libmagic validates the page-size field at offset 16
- * and reads the rest of the header, so a bare magic reads as "data"; this full
- * header makes triage report a genuine "SQLite 3.x database". Fields: 4096-byte
- * pages, UTF-8 text encoding, schema format 4, change counter 1, SQLite version
- * 3.45.0 — a plausible freshly-created database. (The ciphertext that follows is
- * not a real b-tree, so a tool that actually opens it fails past the header — the
- * disguise is triage-only; see docs/CRYPTO-REVIEW.md §6b.)
+ * A complete, valid SQLite 3 database (1024 bytes, two 512-byte pages) with a
+ * `notes` table holding a few innocuous dummy rows. Used as the 'disguised'
+ * prefix: the vault blob is appended after page 2. The header's page-count
+ * (offset 28) equals the real page count and its change-counter (24) equals the
+ * version-valid-for (96), so SQLite trusts the page count and ignores the
+ * appended bytes — `sqlite3 cache.db "SELECT * FROM notes"` opens and lists the
+ * dummy rows. A frozen constant (generated once with sqlite3; not regenerated).
  */
-const SQLITE_HEADER = Uint8Array.from([
-  0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66, 0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00,
-  0x10, 0x00, 0x01, 0x01, 0x00, 0x40, 0x20, 0x20, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x00, 0x2e, 0x76, 0x88,
-]);
+const SQLITE_TEMPLATE = fromBase64(
+  'U1FMaXRlIGZvcm1hdCAzAAIAAQEAQCAgAAAAAwAAAAIAAAAAAAAAAAAAAAIAAAAEAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAC6GKQ0AAAABAaUAAaUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFkBBxcXFwGBEXRhYmxlbm90ZXNub3RlcwJDUkVBVEUgVEFCTEUgbm90ZXMgKGlkIElOVEVHRVIgUFJJTUFSWSBLRVksIHRpdGxlIFRFWFQsIGJvZHkgVEVYVCkNAAAAAwGAAAHYAaoBgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAwQAF0tJZGVhc3dlZWtlbmQgaGlrZTsgcmVwYWludCB0aGUgZmVuY2UsAgQAFVVUb2RvY2FsbCB0aGUgcGx1bWJlcjsgcmVuZXcgbGlicmFyeSBjYXJkJgEEAB8/R3JvY2VyaWVzbWlsaywgZWdncywgYnJlYWQsIGNvZmZlZQ==',
+);
+/** Distinguishing head (the DB header) — a stable signature within a 128-byte peek. */
+const SQLITE_DETECT = SQLITE_TEMPLATE.slice(0, 100);
 
 const BRANDED_PREFIX_LEN = BINARY_MAGIC.length + 1; // magic + version
 
@@ -59,7 +56,7 @@ export function wrapBinary(payload: Uint8Array, variant: BinaryVariant): Uint8Ar
   if (variant === 'branded') {
     return concatBytes(BINARY_MAGIC, Uint8Array.of(BINARY_VERSION), payload);
   }
-  return concatBytes(SQLITE_HEADER, payload);
+  return concatBytes(SQLITE_TEMPLATE, payload);
 }
 
 /**
@@ -76,8 +73,9 @@ export function unwrapBinary(
       throw new Error(`binary container: unsupported version ${version}`);
     return { payload: bytes.slice(BRANDED_PREFIX_LEN), variant: 'branded' };
   }
-  if (startsWith(bytes, SQLITE_HEADER)) {
-    return { payload: bytes.slice(SQLITE_HEADER.length), variant: 'disguised' };
+  // Detect on the DB header (fits a 128-byte peek); strip the whole template.
+  if (startsWith(bytes, SQLITE_DETECT)) {
+    return { payload: bytes.slice(SQLITE_TEMPLATE.length), variant: 'disguised' };
   }
   return null;
 }

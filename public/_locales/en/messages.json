@@ -236,9 +236,25 @@
     "message": "Restore file",
     "description": "Popup: restore button."
   },
-  "estimateImages": {
-    "message": "Estimated images:",
-    "description": "Popup: label before the estimated image count."
+  "estimateFiles": {
+    "message": "Estimated files:",
+    "description": "Popup: label before the estimated output-file count."
+  },
+  "labelFileSize": {
+    "message": "Size:",
+    "description": "Popup: label before the dropped file's size."
+  },
+  "footerPrivacy": {
+    "message": "Privacy",
+    "description": "Web footer: privacy policy link."
+  },
+  "footerTerms": {
+    "message": "Terms",
+    "description": "Web footer: terms link."
+  },
+  "footerSource": {
+    "message": "Source (MIT)",
+    "description": "Web footer: source-code link."
   },
   "statusSaving": {
     "message": "Encrypting and rendering images…",
@@ -788,7 +804,7 @@
     "description": "Wizard: run the restore."
   },
   "destDiskDesc": {
-    "message": "A set of PNG images (or one .zip) to keep on disk or in the cloud.",
+    "message": "PNG images bundled in a .zip, to keep on disk or in the cloud.",
     "description": "Wizard: disk destination description."
   },
   "destPaperDesc": {

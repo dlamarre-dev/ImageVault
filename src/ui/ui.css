@@ -840,3 +840,18 @@ details.advanced[open] > summary::before {
 .wiz-fileinfo {
   margin-top: 10px;
 }
+
+/* Expert mode: advanced options shown inline (no collapse), keeping the
+   separation the old <details> gave. */
+.advanced-static {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* A destination that can't hold the current file is greyed and unselectable.
+   The radio itself is visually hidden, so grey the label. */
+.segmented label:has(input:disabled) {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

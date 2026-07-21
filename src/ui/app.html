@@ -96,13 +96,11 @@
             <span id="dz-file" class="dz-file"></span>
             <input id="save-file" type="file" />
           </div>
-          <p id="estimate-line" class="muted estimate-line">
-            <span data-i18n="estimateImages"></span> <span id="estimate" class="badge">—</span>
+          <p id="size-line" class="muted estimate-line">
+            <span data-i18n="labelFileSize"></span> <span id="save-size" class="badge">—</span>
           </p>
 
-          <details class="advanced">
-            <summary data-i18n="advancedOptions"></summary>
-
+          <div class="advanced-static">
             <label class="muted" data-i18n="destHeading"></label>
             <fieldset class="segmented">
               <label
@@ -132,6 +130,10 @@
                 ></span
               ></label>
             </fieldset>
+            <p id="estimate-line" class="muted estimate-line">
+              <span data-i18n="estimateFiles"></span> <span id="estimate" class="badge">—</span>
+            </p>
+            <p id="no-format" class="status error" hidden></p>
             <p id="cloud-note" class="muted" data-i18n="cloudNote" hidden></p>
             <p id="size-warn" class="muted warn" hidden></p>
 
@@ -170,7 +172,7 @@
                 <span id="gallery-covers-name" class="dz-file"></span>
                 <input id="gallery-covers" type="file" accept="image/png,image/jpeg" multiple />
               </div>
-              <label data-i18n="labelStegoPassword" for="gallery-save-pw"></label>
+              <label class="stack-gap" data-i18n="labelStegoPassword" for="gallery-save-pw"></label>
               <input id="gallery-save-pw" type="password" autocomplete="new-password" />
 
               <label class="muted" data-i18n="keyModeHeading"></label>
@@ -255,7 +257,7 @@
               <input id="key-location" type="text" />
               <p class="muted warn" data-i18n="paperCleartextWarn"></p>
             </div>
-          </details>
+          </div>
 
           <button id="save-btn" class="btn-primary btn-lg" data-i18n="btnSave"></button>
           <p id="save-status" class="status" role="status"></p>
@@ -318,8 +320,7 @@
             data-i18n-placeholder="labelPassword"
           />
 
-          <details id="restore-advanced" class="advanced">
-            <summary data-i18n="advancedOptions"></summary>
+          <div id="restore-advanced" class="advanced-static">
             <div id="key-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
               <svg
                 class="dz-icon"
@@ -342,7 +343,7 @@
               <input id="restore-key" type="file" accept=".key,image/png,image/jpeg" />
             </div>
             <p class="muted" data-i18n="keyFileHint"></p>
-          </details>
+          </div>
 
           <button id="restore-btn" class="btn-primary btn-lg" data-i18n="btnRestore"></button>
           <button

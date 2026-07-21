@@ -21,17 +21,18 @@ describe('binary container wrap/unwrap', () => {
     expect(binaryExtension('branded')).toBe('ssbn');
   });
 
-  it('disguises with a complete, valid 100-byte SQLite header', () => {
+  it('disguises as a complete, openable SQLite database (payload appended)', () => {
     const payload = Uint8Array.from([9, 8, 7]);
     const wrapped = wrapBinary(payload, 'disguised');
-    // Magic string...
+    // A real SQLite header: magic string...
     expect(new TextDecoder().decode(wrapped.slice(0, 15))).toBe('SQLite format 3');
     expect(wrapped[15]).toBe(0);
-    // ...and a valid page-size at offset 16 (what file(1) actually validates).
+    // ...and a valid page-size at offset 16 (what file(1) validates).
     const pageSize = (wrapped[16]! << 8) | wrapped[17]!;
-    expect(pageSize).toBe(4096); // a power of two in [512, 65536]
-    // The full 100-byte header precedes the payload.
-    expect([...wrapped.slice(100)]).toEqual([...payload]);
+    expect(pageSize).toBe(512); // a power of two in [512, 65536]
+    // The DB prefix is a real 1 KB database; the payload rides after its last page,
+    // so `wrapped` is longer than the payload and unwrap recovers it exactly.
+    expect(wrapped.length).toBeGreaterThan(payload.length + 512);
     const un = unwrapBinary(wrapped);
     expect(un?.variant).toBe('disguised');
     expect([...un!.payload]).toEqual([...payload]);

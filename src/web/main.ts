@@ -7,16 +7,9 @@
  * locally in the browser; nothing is uploaded.
  */
 
-import {
-  createKeyBlock,
-  serializeKeyBlock,
-  estimateImages,
-  PROFILE_DISK,
-  PROFILE_PAPER,
-  type KeyMode,
-  type VaultKey,
-} from '@core';
+import { createKeyBlock, serializeKeyBlock, type KeyMode, type VaultKey } from '@core';
 import { el, pick, reflectFiles, setStatus, show, wireDropzone } from '../ui/domhelpers';
+import { type Estimates, computeEstimates, formatSize } from '../ui/estimate';
 import { runSave, type SaveRequest, type StegoInput } from '../ui/save-controller';
 import { runRestore, type RestoreMode } from '../ui/restore-controller';
 import { createWizard, type Wizard, type WizardEnv } from '../ui/wizard';
@@ -47,6 +40,8 @@ const dzFile = el('dz-file');
 const savePw = el<HTMLInputElement>('save-pw');
 const estimate = el('estimate');
 const estimateLine = el('estimate-line');
+const saveSize = el('save-size');
+const noFormat = el('no-format');
 const keymodeFields = el('keymode-fields');
 const stegoFields = el('stego-fields');
 const coverDrop = el('cover-drop');
@@ -117,24 +112,55 @@ function reflectDestination(): void {
   reflectGalleryKeyMode();
 }
 
-async function updateEstimate(): Promise<void> {
-  const file = saveFile.files?.[0];
-  if (!file) return void (estimate.textContent = '—');
-  const dest = selectedDest();
-  if (dest === 'gallery') return; // estimate line is hidden for gallery
-  if (dest === 'binary' || dest === 'sqlite') return void (estimate.textContent = '1');
-  estimate.textContent = '…';
-  try {
-    const content = new Uint8Array(await file.arrayBuffer());
-    const profile = dest === 'paper' ? PROFILE_PAPER : PROFILE_DISK;
-    const { images } = await estimateImages(file.name, content, {
-      keyMode: selectedKeyMode(),
-      profile,
-    });
-    estimate.textContent = String(images);
-  } catch {
-    estimate.textContent = '—';
+// Cached per-file availability, so switching destination doesn't recompress.
+let estimates: Estimates | null = null;
+
+const destRadios = (): HTMLInputElement[] =>
+  Array.from(document.querySelectorAll<HTMLInputElement>('input[name="dest"]'));
+
+/** Recompute availability for the dropped file, grey unavailable destinations, and render. */
+async function refreshEstimates(): Promise<void> {
+  const file = saveFile.files?.[0] ?? null;
+  if (!file) {
+    estimates = null;
+    for (const r of destRadios()) r.disabled = false;
+    renderEstimate();
+    return;
   }
+  const dests = destRadios().map((r) => r.value as Dest);
+  let est: Estimates;
+  try {
+    est = await computeEstimates(file, dests, msg);
+  } catch {
+    return; // couldn't read the file — leave destinations enabled, no estimate
+  }
+  if (saveFile.files?.[0] !== file) return; // a newer file superseded this
+  estimates = est;
+  for (const r of destRadios()) r.disabled = !est[r.value as Dest]?.available;
+  if (!est[selectedDest()]?.available) {
+    const ok = dests.find((d) => est[d]?.available);
+    if (ok) {
+      const radio = document.querySelector<HTMLInputElement>(`input[name="dest"][value="${ok}"]`);
+      if (radio) radio.checked = true;
+      reflectDestination();
+    }
+  }
+  renderEstimate();
+}
+
+/** Render the size line and the estimate / no-format line. */
+function renderEstimate(): void {
+  const file = saveFile.files?.[0];
+  saveSize.textContent = file ? formatSize(file.size) : '—';
+  const anyOk = !estimates || destRadios().some((r) => estimates![r.value as Dest]?.available);
+  show(noFormat, Boolean(file) && !anyOk);
+  if (file && !anyOk) noFormat.textContent = msg('wizNoFormat');
+  // When nothing fits, the no-format error stands in for the estimate line.
+  show(estimateLine, selectedDest() !== 'gallery' && anyOk);
+  const dest = selectedDest();
+  if (!file || dest === 'gallery' || !anyOk) return void (estimate.textContent = '—');
+  const e = estimates?.[dest];
+  estimate.textContent = e?.available ? String(e.count) : '—';
 }
 
 function reflectKeyMode(): void {
@@ -157,13 +183,13 @@ addBand.addEventListener('change', () => show(bandFields, addBand.checked));
 for (const r of document.querySelectorAll('input[name="dest"]')) {
   r.addEventListener('change', () => {
     reflectDestination();
-    void updateEstimate();
+    renderEstimate();
   });
 }
 for (const r of document.querySelectorAll('input[name="keymode"]')) {
   r.addEventListener('change', () => {
     reflectKeyMode();
-    void updateEstimate();
+    renderEstimate();
   });
 }
 for (const r of document.querySelectorAll('input[name="gallery-keymode"]')) {
@@ -176,7 +202,7 @@ for (const r of document.querySelectorAll('input[name="restore-mode"]')) {
 wireDropzone(fileDrop, saveFile, () => {
   reflectFile(fileDrop, dzFile, saveFile);
   show(saveResult, false);
-  void updateEstimate();
+  void refreshEstimates();
 });
 wireDropzone(coverDrop, coverFile, () => reflectFile(coverDrop, coverDzFile, coverFile));
 wireDropzone(galleryCoversDrop, galleryCovers, () =>
@@ -347,6 +373,10 @@ const wizardEnv: WizardEnv = {
     capturedPayloads,
     clearCaptured,
     onCountChange: (cb) => cameraCountSubs.push(cb),
+  },
+  onExit: () => {
+    view = 'chooser';
+    showView();
   },
 };
 

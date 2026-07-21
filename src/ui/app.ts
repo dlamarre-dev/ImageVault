@@ -1,12 +1,6 @@
 import browser from 'webextension-polyfill';
-import {
-  estimateImages,
-  PROFILE_CLOUD,
-  PROFILE_DISK,
-  PROFILE_PAPER,
-  WARN_FILE_BYTES,
-  type KeyMode,
-} from '@core';
+import { WARN_FILE_BYTES, type KeyMode } from '@core';
+import { type Estimates, computeEstimates, formatSize } from './estimate';
 import { localizeDom } from './i18n';
 import { el, friendlyError, msg, pick, reflectFiles, setStatus, show, wireDropzone } from './dom';
 import { getSession, isKeySet, lock, unlock } from './keystore';
@@ -46,6 +40,8 @@ const saveStatus = el('save-status');
 const saveResult = el('save-result');
 const saveResultNote = el('save-result-note');
 const estimate = el('estimate');
+const saveSize = el('save-size');
+const noFormat = el('no-format');
 const lockBtn = el<HTMLButtonElement>('lock-btn');
 const addBand = el<HTMLInputElement>('add-band');
 const addBandLabel = el('add-band-label');
@@ -191,6 +187,7 @@ const wizardEnv: WizardEnv = {
     const s = await getSession();
     return s ? verifyStegoPassword(s.keyBlock, pw) : false;
   },
+  onExit: () => enterChooser(),
 };
 
 function enterGuided(): void {
@@ -280,57 +277,84 @@ for (const radio of document.querySelectorAll('input[name="dest"]')) {
   radio.addEventListener('change', () => {
     reflectDestination();
     void savePrefs({ destination: selectedDest() });
-    void updateEstimate();
+    renderEstimate();
   });
 }
 for (const radio of document.querySelectorAll('input[name="keymode"]')) {
   radio.addEventListener('change', () => {
     reflectKeyMode();
     void savePrefs({ keyMode: selectedKeyMode() });
-    void updateEstimate();
+    renderEstimate();
   });
 }
 for (const radio of document.querySelectorAll('input[name="gallery-keymode"]')) {
   radio.addEventListener('change', reflectGalleryKeyMode);
 }
 
-async function updateEstimate(): Promise<void> {
-  const file = saveFile.files?.[0];
+// Cached per-file availability, so switching destination/key mode doesn't recompress.
+let estimates: Estimates | null = null;
+
+/** Destination radios that are actually visible (cloud is hidden without Google Photos). */
+function destRadios(): HTMLInputElement[] {
+  return Array.from(document.querySelectorAll<HTMLInputElement>('input[name="dest"]')).filter(
+    (r) => !r.closest('label')?.hidden,
+  );
+}
+
+/** Recompute availability for the dropped file, grey unavailable destinations, and render. */
+async function refreshEstimates(): Promise<void> {
+  const file = saveFile.files?.[0] ?? null;
   if (!file) {
-    estimate.textContent = '—';
-    show(sizeWarn, false);
+    estimates = null;
+    for (const r of destRadios()) r.disabled = false;
+    renderEstimate();
     return;
   }
-  const dest = selectedDest();
-  if (dest === 'gallery') return; // its estimate line is hidden — nothing to compute
-  if (dest === 'binary' || dest === 'sqlite') {
-    // A single file, whatever the size — show that instead of an image count.
-    estimate.textContent = '1';
-    show(sizeWarn, false);
-    return;
-  }
-  estimate.textContent = '…';
+  const dests = destRadios().map((r) => r.value as Destination);
+  let est: Estimates;
   try {
-    const content = new Uint8Array(await file.arrayBuffer());
-    const profile =
-      dest === 'paper' ? PROFILE_PAPER : dest === 'cloud' ? PROFILE_CLOUD : PROFILE_DISK;
-    const { images } = await estimateImages(file.name, content, {
-      keyMode: selectedKeyMode(),
-      profile,
-    });
-    estimate.textContent = String(images);
-    // Large secrets sprawl into many images; nudge toward the binary option.
-    if (content.length > WARN_FILE_BYTES) {
-      sizeWarn.textContent = msg('sizeWarnImages', [
-        String(Math.round(content.length / 1024)),
-        String(images),
-      ]);
-      show(sizeWarn, true);
-    } else {
-      show(sizeWarn, false);
-    }
+    est = await computeEstimates(file, dests, msg);
   } catch {
+    return; // couldn't read the file — leave destinations enabled, no estimate
+  }
+  if (saveFile.files?.[0] !== file) return; // a newer file superseded this
+  estimates = est;
+  for (const r of destRadios()) r.disabled = !est[r.value as Destination]?.available;
+  // If the chosen destination no longer fits, move to the first that does.
+  if (!est[selectedDest()]?.available) {
+    const ok = dests.find((d) => est[d]?.available);
+    if (ok) {
+      setRadio('dest', ok);
+      reflectDestination();
+    }
+  }
+  renderEstimate();
+}
+
+/** Render the size line, the estimate/no-format line, and the image-count warning. */
+function renderEstimate(): void {
+  const file = saveFile.files?.[0];
+  saveSize.textContent = file ? formatSize(file.size) : '—';
+  const anyOk = !estimates || destRadios().some((r) => estimates![r.value as Destination]?.available);
+  show(noFormat, Boolean(file) && !anyOk);
+  if (file && !anyOk) noFormat.textContent = msg('wizNoFormat');
+  // When nothing fits, the no-format error stands in for the estimate line.
+  show(estimateLine, selectedDest() !== 'gallery' && anyOk);
+
+  const dest = selectedDest();
+  if (!file || dest === 'gallery' || !anyOk) {
     estimate.textContent = '—';
+    show(sizeWarn, false);
+    return;
+  }
+  const e = estimates?.[dest];
+  estimate.textContent = e?.available ? String(e.count) : '—';
+  // Large secrets sprawl into many images; nudge toward the binary option.
+  const imageDest = dest === 'disk' || dest === 'paper' || dest === 'cloud';
+  if (imageDest && e?.available && file.size > WARN_FILE_BYTES) {
+    sizeWarn.textContent = msg('sizeWarnImages', [String(Math.round(file.size / 1024)), String(e.count)]);
+    show(sizeWarn, true);
+  } else {
     show(sizeWarn, false);
   }
 }
@@ -338,7 +362,7 @@ async function updateEstimate(): Promise<void> {
 wireDropzone(fileDrop, saveFile, () => {
   reflectFile(fileDrop, dzFile, saveFile);
   show(saveResult, false);
-  void updateEstimate();
+  void refreshEstimates();
 });
 wireDropzone(restoreDrop, restoreFiles, () =>
   reflectFile(restoreDrop, restoreDzFile, restoreFiles),
