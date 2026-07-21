@@ -7,24 +7,12 @@
  * each supplies its differences through a `WizardEnv`.
  */
 
-import {
-  type KeyMode,
-  type VaultKey,
-  GALLERY_K_MAX,
-  MAX_FILE_BYTES,
-  MAX_FILE_BYTES_BINARY,
-  MAX_IMAGES,
-  PROFILE_CLOUD,
-  PROFILE_DISK,
-  PROFILE_PAPER,
-  buildPayload,
-  galleryCoversForEnvelopeLen,
-  imagesForEnvelopeLen,
-} from '@core';
+import { type KeyMode, type VaultKey } from '@core';
 import { friendlyError as friendlyErrorWith, reflectFiles, wireDropzone } from './domhelpers';
 import { runSave, type SaveDestination, type SaveRequest } from './save-controller';
 import { runRestore, type RestoreMode } from './restore-controller';
 import type { Msg } from './save-controller';
+import { type DestEstimate, type Estimates, computeEstimates, formatSize } from './estimate';
 
 export interface WizardCamera {
   open: () => void;
@@ -56,21 +44,11 @@ export interface WizardEnv {
   verifyStegoPassword?: (password: string) => Promise<boolean>;
   /** Web restore only: live camera capture. */
   camera?: WizardCamera;
+  /** Leave the wizard — wired to the host's return-to-chooser (Back on step 1). */
+  onExit?: () => void;
 }
 
 type Action = 'save' | 'restore';
-
-/** Per-destination availability + expected output count for the chosen file. */
-interface DestEstimate {
-  available: boolean;
-  /** Images (disk/paper/cloud), 1 (binary/sqlite), or needed photos (gallery). */
-  count: number;
-  /** Gallery only: minimum cover photos needed. */
-  needed?: number;
-  /** Why unavailable, when `available` is false. */
-  reason?: string;
-}
-type Estimates = Partial<Record<SaveDestination, DestEstimate>>;
 
 interface State {
   action: Action | null;
@@ -134,13 +112,6 @@ function h<K extends keyof HTMLElementTagNameMap>(
 }
 
 const KEY_MODES: KeyMode[] = ['embedded', 'keyfile', 'stego'];
-
-/** Human-readable byte size, e.g. "512 KB" / "1.4 MB". */
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export interface Wizard {
   /** Rebuild from the first step (used when re-entering the guided workflow). */
@@ -206,41 +177,14 @@ export function createWizard(root: HTMLElement, env: WizardEnv): Wizard {
     render();
   }
 
-  // --- per-file destination availability + counts ----------------------------
-
-  /** Availability + count for one destination, from the file's size + envelope length. */
-  function estimateFor(dest: SaveDestination, size: number, envelopeLen: number): DestEstimate {
-    if (dest === 'binary' || dest === 'sqlite') {
-      return size <= MAX_FILE_BYTES_BINARY
-        ? { available: true, count: 1 }
-        : { available: false, count: 0, reason: msg('wizTooLargeBinary') };
-    }
-    if (dest === 'gallery') {
-      if (size > MAX_FILE_BYTES) return { available: false, count: 0, reason: msg('wizTooLarge') };
-      const { k, needed } = galleryCoversForEnvelopeLen(envelopeLen, 'embedded');
-      return k <= GALLERY_K_MAX
-        ? { available: true, count: needed, needed }
-        : { available: false, count: 0, reason: msg('wizTooLarge') };
-    }
-    // disk / paper / cloud
-    if (size > MAX_FILE_BYTES) return { available: false, count: 0, reason: msg('wizTooLarge') };
-    const profile = dest === 'paper' ? PROFILE_PAPER : dest === 'cloud' ? PROFILE_CLOUD : PROFILE_DISK;
-    const { images } = imagesForEnvelopeLen(envelopeLen, { profile, keyMode: 'embedded' });
-    return images <= MAX_IMAGES
-      ? { available: true, count: images }
-      : { available: false, count: 0, reason: msg('wizTooManyImages', String(MAX_IMAGES)) };
-  }
+  // --- per-file destination availability + counts (shared with the expert UI) --
 
   /** Compute (once per file) which destinations fit and their output counts. */
   async function ensureEstimates(): Promise<void> {
     const file = state.file;
     if (!file || state.estimatesFor === file) return;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    // Compress once — the envelope length drives every image/gallery count.
-    const envelopeLen = (await buildPayload(file.name, bytes)).length;
+    const est = await computeEstimates(file, env.saveDestinations, msg);
     if (state.file !== file) return; // a newer file superseded this computation
-    const est: Estimates = {};
-    for (const d of env.saveDestinations) est[d] = estimateFor(d, file.size, envelopeLen);
     state.estimates = est;
     state.estimatesFor = file;
     // If the remembered destination no longer fits, fall back to the first that does.
@@ -532,7 +476,11 @@ export function createWizard(root: HTMLElement, env: WizardEnv): Wizard {
           count.textContent = n > 0 ? msg('cameraCount', String(n)) : '';
           cameraCountNode = count; // updated live by the count subscription
           ensureCameraSub();
-          const btn = h('button', { class: 'btn-ghost', type: 'button', text: msg('btnScanCamera') });
+          const btn = h('button', {
+            class: 'btn-ghost stack-gap',
+            type: 'button',
+            text: msg('btnScanCamera'),
+          });
           btn.addEventListener('click', () => env.camera!.open());
           body.append(btn, count);
         }
@@ -737,8 +685,10 @@ export function createWizard(root: HTMLElement, env: WizardEnv): Wizard {
       class: 'btn-secondary',
       type: 'button',
       text: msg('wizBack'),
-      ...(state.index === 0 ? { disabled: '' } : {}),
-      onclick: () => go(-1),
+      // On the first step, Back leaves the wizard (returns to the chooser) if the
+      // host wired onExit; otherwise it's disabled.
+      ...(state.index === 0 && !env.onExit ? { disabled: '' } : {}),
+      onclick: () => (state.index === 0 ? env.onExit?.() : go(-1)),
     });
 
     let nextBtn: HTMLButtonElement;

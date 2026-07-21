@@ -159,9 +159,6 @@
   "btnRestore": {
     "message": "Ripristina il file"
   },
-  "estimateImages": {
-    "message": "Immagini stimate:"
-  },
   "statusSaving": {
     "message": "Cifratura e rendering delle immagini…"
   },
@@ -695,7 +692,7 @@
     "description": "Wizard: run the restore."
   },
   "destDiskDesc": {
-    "message": "Un set di immagini PNG (o uno .zip) da tenere su disco o nel cloud.",
+    "message": "Immagini PNG raccolte in uno .zip, da tenere su disco o nel cloud.",
     "description": "Wizard: disk destination description."
   },
   "destPaperDesc": {
@@ -828,5 +825,25 @@
         "content": "$1"
       }
     }
+  },
+  "estimateFiles": {
+    "message": "File stimati:",
+    "description": "Popup: label before the estimated output-file count."
+  },
+  "labelFileSize": {
+    "message": "Dimensione:",
+    "description": "Popup: label before the dropped file's size."
+  },
+  "footerPrivacy": {
+    "message": "Privacy",
+    "description": "Web footer: privacy policy link."
+  },
+  "footerTerms": {
+    "message": "Termini",
+    "description": "Web footer: terms link."
+  },
+  "footerSource": {
+    "message": "Sorgente (MIT)",
+    "description": "Web footer: source-code link."
   }
 }

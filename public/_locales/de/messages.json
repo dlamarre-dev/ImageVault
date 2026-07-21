@@ -159,9 +159,6 @@
   "btnRestore": {
     "message": "Datei wiederherstellen"
   },
-  "estimateImages": {
-    "message": "Geschätzte Bilder:"
-  },
   "statusSaving": {
     "message": "Verschlüsseln und Bilder erzeugen…"
   },
@@ -695,7 +692,7 @@
     "description": "Wizard: run the restore."
   },
   "destDiskDesc": {
-    "message": "Ein Satz PNG-Bilder (oder eine .zip) für Festplatte oder Cloud.",
+    "message": "PNG-Bilder in einer .zip gebündelt, für Festplatte oder Cloud.",
     "description": "Wizard: disk destination description."
   },
   "destPaperDesc": {
@@ -828,5 +825,25 @@
         "content": "$1"
       }
     }
+  },
+  "estimateFiles": {
+    "message": "Geschätzte Dateien:",
+    "description": "Popup: label before the estimated output-file count."
+  },
+  "labelFileSize": {
+    "message": "Größe:",
+    "description": "Popup: label before the dropped file's size."
+  },
+  "footerPrivacy": {
+    "message": "Datenschutz",
+    "description": "Web footer: privacy policy link."
+  },
+  "footerTerms": {
+    "message": "Nutzungsbedingungen",
+    "description": "Web footer: terms link."
+  },
+  "footerSource": {
+    "message": "Quellcode (MIT)",
+    "description": "Web footer: source-code link."
   }
 }

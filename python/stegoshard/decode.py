@@ -42,7 +42,7 @@ def _find_binary_vault(paths: list[str]) -> bytes | None:
         if not os.path.isfile(path):
             continue
         with open(path, "rb") as fh:
-            head = fh.read(128)  # covers the disguised variant's 100-byte header
+            head = fh.read(128)  # covers the disguised variant's 100-byte detection head
         try:
             is_container = unwrap_binary(head) is not None
         except ValueError:

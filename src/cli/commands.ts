@@ -276,7 +276,7 @@ function isBinaryContainerFile(path: string): boolean {
   try {
     fd = openSync(path, 'r');
     if (!fstatSync(fd).isFile()) return false;
-    // Enough to cover the disguised variant's 100-byte SQLite header.
+    // Enough to cover the disguised variant's 100-byte SQLite detection head.
     const buf = Buffer.alloc(128);
     const n = readSync(fd, buf, 0, 128, 0);
     return unwrapBinary(new Uint8Array(buf.subarray(0, n))) !== null;

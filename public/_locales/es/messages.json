@@ -159,9 +159,6 @@
   "btnRestore": {
     "message": "Restaurar el archivo"
   },
-  "estimateImages": {
-    "message": "Imágenes estimadas:"
-  },
   "statusSaving": {
     "message": "Cifrando y generando las imágenes…"
   },
@@ -695,7 +692,7 @@
     "description": "Wizard: run the restore."
   },
   "destDiskDesc": {
-    "message": "Un conjunto de imágenes PNG (o un .zip) para guardar en disco o en la nube.",
+    "message": "Imágenes PNG en un .zip, para guardar en disco o en la nube.",
     "description": "Wizard: disk destination description."
   },
   "destPaperDesc": {
@@ -828,5 +825,25 @@
         "content": "$1"
       }
     }
+  },
+  "estimateFiles": {
+    "message": "Archivos estimados:",
+    "description": "Popup: label before the estimated output-file count."
+  },
+  "labelFileSize": {
+    "message": "Tamaño:",
+    "description": "Popup: label before the dropped file's size."
+  },
+  "footerPrivacy": {
+    "message": "Privacidad",
+    "description": "Web footer: privacy policy link."
+  },
+  "footerTerms": {
+    "message": "Términos",
+    "description": "Web footer: terms link."
+  },
+  "footerSource": {
+    "message": "Código (MIT)",
+    "description": "Web footer: source-code link."
   }
 }

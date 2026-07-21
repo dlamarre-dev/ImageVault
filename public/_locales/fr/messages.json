@@ -236,10 +236,6 @@
     "message": "Restaurer le fichier",
     "description": "Popup: restore button."
   },
-  "estimateImages": {
-    "message": "Images estimées :",
-    "description": "Popup: label before the estimated image count."
-  },
   "statusSaving": {
     "message": "Chiffrement et rendu des images…",
     "description": "Popup: status while saving."
@@ -792,7 +788,7 @@
     "description": "Wizard: run the restore."
   },
   "destDiskDesc": {
-    "message": "Un jeu d'images PNG (ou un .zip) à conserver sur disque ou dans le cloud.",
+    "message": "Images PNG regroupées dans un .zip, à conserver sur disque ou dans le cloud.",
     "description": "Wizard: disk destination description."
   },
   "destPaperDesc": {
@@ -925,5 +921,25 @@
         "content": "$1"
       }
     }
+  },
+  "estimateFiles": {
+    "message": "Fichiers estimés :",
+    "description": "Popup: label before the estimated output-file count."
+  },
+  "labelFileSize": {
+    "message": "Taille :",
+    "description": "Popup: label before the dropped file's size."
+  },
+  "footerPrivacy": {
+    "message": "Confidentialité",
+    "description": "Web footer: privacy policy link."
+  },
+  "footerTerms": {
+    "message": "Conditions",
+    "description": "Web footer: terms link."
+  },
+  "footerSource": {
+    "message": "Code source (MIT)",
+    "description": "Web footer: source-code link."
   }
 }

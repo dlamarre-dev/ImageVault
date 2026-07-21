@@ -159,9 +159,6 @@
   "btnRestore": {
     "message": "ファイルを復元"
   },
-  "estimateImages": {
-    "message": "推定画像数："
-  },
   "statusSaving": {
     "message": "暗号化して画像を生成中…"
   },
@@ -695,7 +692,7 @@
     "description": "Wizard: run the restore."
   },
   "destDiskDesc": {
-    "message": "ディスクやクラウドに保管する PNG 画像一式（または .zip）。",
+    "message": ".zip にまとめた PNG 画像。ディスクやクラウドに保管します。",
     "description": "Wizard: disk destination description."
   },
   "destPaperDesc": {
@@ -828,5 +825,25 @@
         "content": "$1"
       }
     }
+  },
+  "estimateFiles": {
+    "message": "推定ファイル数:",
+    "description": "Popup: label before the estimated output-file count."
+  },
+  "labelFileSize": {
+    "message": "サイズ:",
+    "description": "Popup: label before the dropped file's size."
+  },
+  "footerPrivacy": {
+    "message": "プライバシー",
+    "description": "Web footer: privacy policy link."
+  },
+  "footerTerms": {
+    "message": "利用規約",
+    "description": "Web footer: terms link."
+  },
+  "footerSource": {
+    "message": "ソース (MIT)",
+    "description": "Web footer: source-code link."
   }
 }

@@ -159,9 +159,6 @@
   "btnRestore": {
     "message": "還原檔案"
   },
-  "estimateImages": {
-    "message": "預估圖像數："
-  },
   "statusSaving": {
     "message": "正在加密並產生圖像…"
   },
@@ -695,7 +692,7 @@
     "description": "Wizard: run the restore."
   },
   "destDiskDesc": {
-    "message": "一組 PNG 圖片（或一個 .zip），可存放在磁碟或雲端。",
+    "message": "打包成 .zip 的 PNG 圖片，可存放在磁碟或雲端。",
     "description": "Wizard: disk destination description."
   },
   "destPaperDesc": {
@@ -828,5 +825,25 @@
         "content": "$1"
       }
     }
+  },
+  "estimateFiles": {
+    "message": "預估檔案數：",
+    "description": "Popup: label before the estimated output-file count."
+  },
+  "labelFileSize": {
+    "message": "大小：",
+    "description": "Popup: label before the dropped file's size."
+  },
+  "footerPrivacy": {
+    "message": "隱私權",
+    "description": "Web footer: privacy policy link."
+  },
+  "footerTerms": {
+    "message": "條款",
+    "description": "Web footer: terms link."
+  },
+  "footerSource": {
+    "message": "原始碼 (MIT)",
+    "description": "Web footer: source-code link."
   }
 }

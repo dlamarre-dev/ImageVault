@@ -21,7 +21,6 @@
       <div class="appbar-actions">
         <button id="workflows-btn" class="btn-ghost" data-i18n="btnWorkflows" hidden></button>
         <select id="lang-select" class="lang-select" aria-label="Language"></select>
-        <a class="btn-ghost" href="https://github.com/dlamarre-dev/StegoShard">GitHub</a>
       </div>
     </header>
 
@@ -77,8 +76,8 @@
             <span id="dz-file" class="dz-file"></span>
             <input id="save-file" type="file" />
           </div>
-          <p id="estimate-line" class="muted estimate-line">
-            <span data-i18n="estimateImages"></span> <span id="estimate" class="badge">—</span>
+          <p id="size-line" class="muted estimate-line">
+            <span data-i18n="labelFileSize"></span> <span id="save-size" class="badge">—</span>
           </p>
 
           <input
@@ -88,9 +87,7 @@
             data-i18n-placeholder="labelPassword"
           />
 
-          <details class="advanced">
-            <summary data-i18n="advancedOptions"></summary>
-
+          <div class="advanced-static">
             <label class="muted" data-i18n="destHeading"></label>
             <fieldset class="segmented">
               <label
@@ -117,6 +114,10 @@
                 ></span
               ></label>
             </fieldset>
+            <p id="estimate-line" class="muted estimate-line">
+              <span data-i18n="estimateFiles"></span> <span id="estimate" class="badge">—</span>
+            </p>
+            <p id="no-format" class="status error" hidden></p>
 
             <div id="keymode-fields">
               <label class="muted" data-i18n="keyModeHeading"></label>
@@ -235,7 +236,7 @@
               <input id="key-location" type="text" />
               <p class="muted warn" data-i18n="paperCleartextWarn"></p>
             </div>
-          </details>
+          </div>
 
           <button id="save-btn" class="btn-primary btn-lg" data-i18n="btnSave"></button>
           <p id="save-status" class="status" role="status"></p>
@@ -317,8 +318,7 @@
             data-i18n-placeholder="labelPassword"
           />
 
-          <details id="restore-advanced" class="advanced">
-            <summary data-i18n="advancedOptions"></summary>
+          <div id="restore-advanced" class="advanced-static">
             <div id="key-drop" class="dropzone dropzone-sm" tabindex="0" role="button">
               <svg
                 class="dz-icon"
@@ -341,7 +341,7 @@
               <input id="restore-key" type="file" accept=".key,image/png,image/jpeg" />
             </div>
             <p class="muted" data-i18n="keyFileHint"></p>
-          </details>
+          </div>
 
           <button id="restore-btn" class="btn-primary btn-lg" data-i18n="btnRestore"></button>
           <p id="restore-status" class="status" role="status"></p>
@@ -354,8 +354,9 @@
       </div>
 
       <footer class="app-footer muted">
-        <a href="./privacy.html">Privacy</a> · <a href="./terms.html">Terms</a> ·
-        <a href="https://github.com/dlamarre-dev/StegoShard">Source (MIT)</a>
+        <a href="./privacy.html" data-i18n="footerPrivacy">Privacy</a> ·
+        <a href="./terms.html" data-i18n="footerTerms">Terms</a> ·
+        <a href="https://github.com/dlamarre-dev/StegoShard" data-i18n="footerSource">Source (MIT)</a>
       </footer>
     </main>
 

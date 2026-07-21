@@ -224,28 +224,30 @@ the §5.1 key block).
 
 ## 6b. Disguised binary container (SPEC §8)
 
-**Claim: the disguised binary variant reads as an ordinary SQLite database to
-file-type triage — and nothing more.**
+**Claim: the disguised binary variant is a real, openable SQLite database — it
+survives type triage *and* a casual `sqlite3` open — but not forensic scrutiny.**
 
 The binary output (SPEC §8) wraps the vault blob (§6) in a single file. The blob
 is already an authenticated AES-256-GCM ciphertext, so neither variant changes
 the confidentiality boundary — the container is packaging. The **disguised**
-variant prepends a **complete, valid 100-byte SQLite 3 header** — not just the
-16-byte magic string. This matters: modern libmagic (`file` 5.46, verified)
-validates the page-size field at offset 16 and reads the rest of the header, so a
-bare magic reads as `data`, whereas the full header makes `file` report a genuine
-`SQLite 3.x database, ... UTF-8, ...`. Extension filters and folder listings are
-fooled a fortiori.
+variant prepends a **complete, valid 1024-byte SQLite 3 database** (two 512-byte
+pages, a `notes` table with innocuous dummy rows) and appends the vault blob after
+the database's last page. Because the header's page-count (offset 28) matches the
+real page count and its change-counter (24) equals the version-valid-for (96),
+SQLite reads only those two pages and ignores the trailing bytes: `sqlite3
+cache.db "SELECT * FROM notes"` opens and lists the dummy rows, and `PRAGMA
+integrity_check` returns `ok`. So the file fools not just `file(1)`/extension
+triage but also anyone who *opens* it to take a quick look.
 
-**Honest limits (stated in the module and docs):** this defeats **type/extension
-triage only**. The bytes after the 100-byte header are high-entropy ciphertext,
-not a valid b-tree, so a tool that actually _opens_ the file as SQLite fails
-immediately (`file is not a database` / malformed page). Anyone who inspects
-rather than lists it sees a file that claims to be SQLite but is not. The disguise
-is a layer against a casual glance, never a claim of indistinguishability from a
-real database. The **branded** variant makes no attempt to hide (it is
-self-labelling by design). Both are defense-in-depth on top of the
-password-wrapped key block, exactly like the stego carriers (§6a).
+**Honest limits (stated in the module and docs):** the appended vault blob is
+high-entropy ciphertext sitting past the DB's logical end. A forensic examiner who
+compares the file length against `page_count × page_size`, or hexdumps the tail,
+sees ~4× the database's worth of random bytes that no SQLite page references — a
+clear tell. So this is deniability against a **casual open**, never a claim of
+indistinguishability from a genuine database under scrutiny. The **branded**
+variant makes no attempt to hide (it is self-labelling by design). Both are
+defense-in-depth on top of the password-wrapped key block, exactly like the stego
+carriers (§6a).
 
 ## 6c. Gallery Mode (deniable multi-image distribution, SPEC §9)
 
