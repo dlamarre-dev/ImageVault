@@ -7,8 +7,13 @@ the image carries no key (deliberately indistinguishable).
 
 from __future__ import annotations
 
+import hashlib
+import struct
+
 from argon2.low_level import ARGON2_VERSION, Type, hash_secret_raw
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from .crypto import normalize_password
 from .format import KEY_BLOCK_VERSION, KEY_MAGIC
@@ -21,6 +26,41 @@ MIN_CAPACITY = PAYLOAD_BITS * 16
 STEGO_SALT = b"StegoShard-stego"
 # Fixed application salt for Gallery Mode: ASCII "StegoShard-gllry" (SPEC §9.1).
 GALLERY_SALT = b"StegoShard-gllry"
+# HKDF info binding the keystream to the specific cover (SPEC §5.3/§5.4/§9.3).
+STEGO_COVER_INFO = b"stegoshard/stego/cover"
+
+
+def _cover_fingerprint_rgba(rgba: bytes, width: int, height: int) -> bytes:
+    """SHA-256 over an RGBA cover's embedding-invariant bits (RGB, LSB masked;
+    alpha excluded). Mirrors coverFingerprintRgba in src/core/stego.ts."""
+    pixels = width * height
+    masked = bytearray(pixels * 3)
+    o = 0
+    for p in range(pixels):
+        base = p * 4
+        masked[o] = rgba[base] & 0xFE
+        masked[o + 1] = rgba[base + 1] & 0xFE
+        masked[o + 2] = rgba[base + 2] & 0xFE
+        o += 3
+    return hashlib.sha256(bytes(masked)).digest()
+
+
+def _cover_fingerprint_jpeg(carriers: list[tuple[list[int], int]]) -> bytes:
+    """SHA-256 over eligible carriers' signed magnitudes with bit 0 masked, big-
+    endian int32, in carrier order. Mirrors coverFingerprintJpeg in stego.ts."""
+    buf = bytearray()
+    for block, k in carriers:
+        v = block[k]
+        m = abs(v) & ~1
+        buf += struct.pack(">i", -m if v < 0 else m)
+    return hashlib.sha256(bytes(buf)).digest()
+
+
+def _cover_key(seed: bytes, fingerprint: bytes) -> bytes:
+    """Per-cover keystream key: HKDF-SHA256(seed, salt=fingerprint, info=COVER)."""
+    return HKDF(
+        algorithm=hashes.SHA256(), length=32, salt=fingerprint, info=STEGO_COVER_INFO
+    ).derive(seed)
 
 
 def _keystream_from_seed(seed: bytes, length: int) -> bytes:
@@ -29,7 +69,14 @@ def _keystream_from_seed(seed: bytes, length: int) -> bytes:
     return encryptor.update(b"\x00" * length) + encryptor.finalize()
 
 
-def _keystream(password: str, length: int, iterations: int, memory_kib: int, parallelism: int) -> bytes:
+def _keystream(
+    password: str,
+    length: int,
+    iterations: int,
+    memory_kib: int,
+    parallelism: int,
+    fingerprint: bytes,
+) -> bytes:
     seed = hash_secret_raw(
         secret=normalize_password(password).encode("utf-8"),
         salt=STEGO_SALT,
@@ -40,8 +87,9 @@ def _keystream(password: str, length: int, iterations: int, memory_kib: int, par
         type=Type.ID,
         version=ARGON2_VERSION,
     )
-    # AES-256-CTR over zero bytes, counter starting at 0 (matches WebCrypto).
-    return _keystream_from_seed(seed, length)
+    # Bind the keystream to this cover, then AES-256-CTR over zero bytes (counter
+    # 0, matches WebCrypto).
+    return _keystream_from_seed(_cover_key(seed, fingerprint), length)
 
 
 def _pick_positions(stream: bytes, offset: int, capacity: int, count: int) -> list[int]:
@@ -85,7 +133,8 @@ def extract_key_block(
     if capacity < MIN_CAPACITY:
         return None
 
-    stream = _keystream(password, _stream_len(), iterations, memory_kib, parallelism)
+    fingerprint = _cover_fingerprint_rgba(rgba, width, height)
+    stream = _keystream(password, _stream_len(), iterations, memory_kib, parallelism, fingerprint)
     pad = stream[:KEY_BLOCK_LEN]
     positions = _pick_positions(stream, KEY_BLOCK_LEN, capacity, PAYLOAD_BITS)
 
@@ -130,7 +179,8 @@ def extract_key_block_jpeg(
     if capacity < JPEG_MIN_CAPACITY:
         return None
 
-    stream = _keystream(password, _stream_len(), iterations, memory_kib, parallelism)
+    fingerprint = _cover_fingerprint_jpeg(carriers)
+    stream = _keystream(password, _stream_len(), iterations, memory_kib, parallelism, fingerprint)
     pad = stream[:KEY_BLOCK_LEN]
     positions = _pick_positions(stream, KEY_BLOCK_LEN, capacity, PAYLOAD_BITS)
 
@@ -173,7 +223,8 @@ def extract_bytes_rgba(
     bits = length * 8
     if capacity < bits * margin:
         return None
-    stream = _keystream_from_seed(seed, _position_stream_len(bits))
+    cover = _cover_key(seed, _cover_fingerprint_rgba(rgba, width, height))
+    stream = _keystream_from_seed(cover, _position_stream_len(bits))
     positions = _pick_positions(stream, 0, capacity, bits)
     out = bytearray(length)
     for i, pos in enumerate(positions):
@@ -201,7 +252,8 @@ def extract_bytes_jpeg(
     bits = length * 8
     if capacity < bits * margin:
         return None
-    stream = _keystream_from_seed(seed, _position_stream_len(bits))
+    cover = _cover_key(seed, _cover_fingerprint_jpeg(carriers))
+    stream = _keystream_from_seed(cover, _position_stream_len(bits))
     positions = _pick_positions(stream, 0, capacity, bits)
     out = bytearray(length)
     for i, pos in enumerate(positions):

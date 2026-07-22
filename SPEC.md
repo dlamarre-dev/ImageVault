@@ -193,7 +193,17 @@ Derivation (all decoders MUST reproduce it bit-for-bit):
    `STEGO_SALT` is the fixed 16 bytes `53 74 65 67 6F 53 68 61 72 64 2D 73 74 65 67 6F`
    (ASCII `"StegoShard-stego"`) and `params` are the caller's Argon2id
    cost parameters (the extension uses the §5.1 production defaults).
-2. `stream = AES-256-CTR(key = seed, counter = 0¹²⁸)` applied to zero bytes,
+1a. **Cover fingerprint:** `fp = SHA-256(coverInvariant)`, where `coverInvariant`
+   is the concatenation, in pixel order, of each RGB channel byte with its LSB
+   masked off (`byte & 0xFE`; alpha excluded) — i.e. exactly the bits embedding
+   never changes. `key = HKDF-SHA256(ikm = seed, salt = fp,
+   info = "stegoshard/stego/cover", L = 32)`. Because `fp` depends only on
+   embedding-invariant bits it is identical at embed and extract, so **nothing is
+   stored in the image** — the "no header/magic/length" property is preserved.
+   This binds the keystream to the specific cover: the same password over two
+   different covers (or the same cover reused) never repeats the whitening pad or
+   the carrier layout.
+2. `stream = AES-256-CTR(key, counter = 0¹²⁸)` applied to zero bytes,
    generating as many bytes as needed. The first `KEY_BLOCK_LEN` bytes are the
    **whitening pad**; the remainder feeds position selection.
 3. **Whiten:** `whitened = keyBlock XOR pad`.
@@ -215,8 +225,14 @@ sequential Huffman (SOF0), 8-bit, is supported; progressive (SOF2), arithmetic
 coding, and other formats (HEIC, WebP) MUST be rejected — never transcoded, which
 would change the file's size/appearance and defeat deniability.
 
-The keyed selection, whitening pad, MSB-first bit order, and §5.1 validation are
-**identical to §5.3** — only the carrier differs:
+The keyed selection, whitening pad, MSB-first bit order, per-cover keystream
+binding (step 1a), and §5.1 validation are **identical to §5.3** — only the
+carrier and the cover fingerprint differ. For a JPEG the fingerprint is
+`fp = SHA-256(concat over eligible carriers, in carrier order, of the signed
+coefficient magnitude with bit 0 masked off, encoded big-endian int32)` — again
+exactly the content embedding leaves unchanged (`|coef| ≥ 2` is preserved and
+only the magnitude LSB is touched), so it is identical at embed and extract and
+nothing is stored. Only the carrier differs:
 
 - **Carrier set:** every quantized **AC** coefficient (zig-zag indices 1..63; the
   DC coefficient is never used) whose value satisfies **|coef| ≥ 2**, enumerated
@@ -409,13 +425,17 @@ sealed fragment (both are uniform).
 
 ### 9.3 Carrier selection
 
-Identical to §5.3/§5.4 — an AES-CTR keystream seeded by `posKey` drives
-rejection-sampled distinct carrier positions (RGB LSBs for a PNG cover; eligible
-AC coefficients with `|coef| ≥ 2` for a baseline JPEG, keeping size invariance),
-MSB-first bit order — **except** there is no whitening pad (the sealed slot is
-already uniform) and the length is `SLOT_BYTES·8` bits, not the fixed key-block
-length. A cover must have `≥ SLOT_BYTES·8·4` eligible carriers (a ×4 margin keeps
-embedding sparse) or it is rejected.
+Identical to §5.3/§5.4 — an AES-CTR keystream drives rejection-sampled distinct
+carrier positions (RGB LSBs for a PNG cover; eligible AC coefficients with
+`|coef| ≥ 2` for a baseline JPEG, keeping size invariance), MSB-first bit order —
+**except** there is no whitening pad (the sealed slot is already uniform) and the
+length is `SLOT_BYTES·8` bits, not the fixed key-block length. The keystream key
+is per-cover: `key = HKDF-SHA256(ikm = posKey, salt = fp,
+info = "stegoshard/stego/cover", L = 32)` with the same cover fingerprint `fp` as
+§5.3 (PNG) / §5.4 (JPEG), so each photo's carrier layout is unique even though one
+`posKey` covers the whole gallery, and blind extraction recomputes `fp` from each
+candidate photo. A cover must have `≥ SLOT_BYTES·8·4` eligible carriers (a ×4
+margin keeps embedding sparse) or it is rejected.
 
 ### 9.4 Encode
 

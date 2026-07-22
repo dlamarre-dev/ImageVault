@@ -165,10 +165,19 @@ photo with natural LSB noise; the layer is not a cheap password oracle.**
 `src/core/stego.ts` hides the 92-byte key block in the RGB least-significant
 bits of a cover photo (SPEC §5.3). Reviewer-relevant properties:
 
-- **Password-keyed positions + whitening.** `Argon2id(NFC(password), fixed salt)`
-  seeds an AES-256-CTR stream that both XOR-whitens the payload and chooses the
-  ~736 carrier LSBs by unbiased rejection sampling. Carrier bits are therefore
-  uniform, and their locations are unknown without the password.
+- **Password-keyed positions + whitening, bound to the cover.** `Argon2id(NFC(password),
+  fixed salt)` produces a seed, which is combined with a **fingerprint of the cover**
+  via `HKDF-SHA256(seed, salt = fp, info = "stegoshard/stego/cover")` to key an
+  AES-256-CTR stream that both XOR-whitens the payload and chooses the ~736 carrier
+  LSBs by unbiased rejection sampling. Carrier bits are uniform and their locations
+  are unknown without the password. The fingerprint is taken over exactly the bits
+  embedding never touches (RGB with the LSB masked; JPEG coefficient magnitudes with
+  bit 0 masked), so it is identical at embed and extract and **nothing extra is
+  stored** — yet the whitening pad and carrier layout are now unique per cover. This
+  closes a reuse gap: without it, the same password over two same-size covers reused
+  one pad and one position set (an XOR-of-plaintexts / carrier-correlation leak across
+  images); now every cover is independent. Gallery Mode (§6c) derives its per-cover
+  keystream the same way from its `posKey`.
 - **No structure on the wire.** Fixed payload length, no magic/length/header in
   the image. Wrong-password extraction yields random bytes that fail the §5.1
   key-block magic check and is reported identically to "no key here"

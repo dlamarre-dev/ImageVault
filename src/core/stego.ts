@@ -39,6 +39,7 @@ import { argon2id } from 'hash-wasm';
 import {
   type Argon2Params,
   DEFAULT_ARGON2,
+  hkdf,
   KEY_BLOCK_LEN,
   isSerializedKeyBlock,
   normalizePassword,
@@ -46,12 +47,72 @@ import {
 import {
   decode as decodeJpeg,
   encode as encodeJpeg,
+  type JpegModel,
   eligibleCoefficients,
   eligibleInPlace,
   applyScanToggles,
 } from './jpeg-coeff';
 
 const subtle = globalThis.crypto.subtle;
+
+// Per-cover keystream nonce (SPEC §5.3/§5.4/§9.3). The keystream that both
+// whitens the payload and selects carrier positions is bound to a fingerprint of
+// the *cover*, so two vaults saved with the same password into different covers
+// (or the same cover reused) never share a whitening pad or a carrier layout —
+// which would otherwise be a two-time-pad / correlation leak. The fingerprint is
+// taken over exactly the bits embedding never changes (RGB with the LSB masked;
+// JPEG coefficient magnitudes with bit 0 masked), so it is identical at embed and
+// at extract and NOTHING has to be stored in the image ("no structure on the
+// wire" is preserved). Mirrored bit-for-bit by the Python reference decoder.
+const STEGO_COVER_INFO = new TextEncoder().encode('stegoshard/stego/cover');
+
+/** SHA-256 over an RGBA cover's embedding-invariant bits (RGB, LSB masked; alpha excluded). */
+async function coverFingerprintRgba(
+  rgba: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+): Promise<Uint8Array> {
+  const pixels = width * height;
+  const masked = new Uint8Array(pixels * 3);
+  let o = 0;
+  for (let p = 0; p < pixels; p++) {
+    const base = p * 4;
+    masked[o++] = rgba[base]! & 0xfe;
+    masked[o++] = rgba[base + 1]! & 0xfe;
+    masked[o++] = rgba[base + 2]! & 0xfe;
+  }
+  return new Uint8Array(await subtle.digest('SHA-256', masked as BufferSource));
+}
+
+/**
+ * SHA-256 over a baseline JPEG's embedding-invariant coefficient content: for
+ * each eligible carrier (|coef| ≥ 2 AC coeff, in `eligibleCoefficients` order),
+ * the signed magnitude with bit 0 masked off, encoded big-endian int32. Embedding
+ * only flips those bit-0s and preserves |coef| ≥ 2, so this is stable.
+ */
+async function coverFingerprintJpeg(model: JpegModel): Promise<Uint8Array> {
+  const vals: number[] = [];
+  for (const comp of model.components) {
+    for (const block of comp.blocks) {
+      for (let k = 1; k < 64; k++) {
+        const v = block[k]!;
+        if (Math.abs(v) >= 2) {
+          const m = Math.abs(v) & ~1;
+          vals.push(v < 0 ? -m : m);
+        }
+      }
+    }
+  }
+  const buf = new Uint8Array(vals.length * 4);
+  const dv = new DataView(buf.buffer);
+  for (let i = 0; i < vals.length; i++) dv.setInt32(i * 4, vals[i]!, false);
+  return new Uint8Array(await subtle.digest('SHA-256', buf as BufferSource));
+}
+
+/** Derive the per-cover keystream key from a base secret and the cover fingerprint. */
+async function coverKey(baseSeed: Uint8Array, fingerprint: Uint8Array): Promise<Uint8Array> {
+  return hkdf(baseSeed, STEGO_COVER_INFO, 32, fingerprint);
+}
 
 /**
  * Fixed application salt for the stego key derivation. Unlike the key block's
@@ -110,7 +171,12 @@ async function keystreamFromSeed(seed: Uint8Array, len: number): Promise<Uint8Ar
 }
 
 /** Deterministic keystream of `len` bytes from the password via Argon2id + AES-CTR. */
-async function keystream(password: string, len: number, params: Argon2Params): Promise<Uint8Array> {
+async function keystream(
+  password: string,
+  len: number,
+  params: Argon2Params,
+  fingerprint: Uint8Array,
+): Promise<Uint8Array> {
   const seed = (await argon2id({
     password: normalizePassword(password),
     salt: STEGO_SALT,
@@ -120,8 +186,12 @@ async function keystream(password: string, len: number, params: Argon2Params): P
     hashLength: 32,
     outputType: 'binary',
   })) as Uint8Array;
-  const stream = await keystreamFromSeed(seed, len);
+  // Bind the keystream to this specific cover (SPEC §5.3): whitening pad and
+  // carrier positions become unique per cover even under a reused password.
+  const ckey = await coverKey(seed, fingerprint);
   seed.fill(0);
+  const stream = await keystreamFromSeed(ckey, len);
+  ckey.fill(0);
   return stream;
 }
 
@@ -190,7 +260,8 @@ export async function embedKeyBlockStego(
   const capacity = capacityBits(width, height);
   if (capacity < MIN_CAPACITY) throw new StegoCapacityError(capacity);
 
-  const stream = await keystream(password, streamLen(), params);
+  const fingerprint = await coverFingerprintRgba(rgba, width, height);
+  const stream = await keystream(password, streamLen(), params, fingerprint);
   const pad = stream.subarray(0, PAYLOAD_LEN);
   const reader = new StreamReader(stream.subarray(PAYLOAD_LEN));
   const positions = pickPositions(reader, capacity, PAYLOAD_BITS);
@@ -218,7 +289,8 @@ export async function extractKeyBlockStego(
   const capacity = capacityBits(width, height);
   if (capacity < MIN_CAPACITY) return null;
 
-  const stream = await keystream(password, streamLen(), params);
+  const fingerprint = await coverFingerprintRgba(rgba, width, height);
+  const stream = await keystream(password, streamLen(), params, fingerprint);
   const pad = stream.subarray(0, PAYLOAD_LEN);
   const reader = new StreamReader(stream.subarray(PAYLOAD_LEN));
   const positions = pickPositions(reader, capacity, PAYLOAD_BITS);
@@ -263,7 +335,8 @@ export async function embedKeyBlockStegoJpeg(
   }
   const model = decodeJpeg(jpegBytes); // throws JpegUnsupportedError if not baseline
 
-  const stream = await keystream(password, streamLen(), params);
+  const fingerprint = await coverFingerprintJpeg(model);
+  const stream = await keystream(password, streamLen(), params, fingerprint);
   const pad = stream.subarray(0, PAYLOAD_LEN);
   const bitAt = (i: number): number => ((keyBlock[i >> 3]! ^ pad[i >> 3]!) >> (7 - (i & 7))) & 1;
 
@@ -303,15 +376,17 @@ export async function extractKeyBlockStegoJpeg(
   password: string,
   params: Argon2Params = DEFAULT_ARGON2,
 ): Promise<Uint8Array | null> {
-  let carriers: ReturnType<typeof eligibleCoefficients>;
+  let model: JpegModel;
   try {
-    carriers = eligibleCoefficients(decodeJpeg(jpegBytes));
+    model = decodeJpeg(jpegBytes);
   } catch {
     return null; // not a baseline JPEG → no key here
   }
+  const carriers = eligibleCoefficients(model);
   if (carriers.count < JPEG_MIN_CAPACITY) return null;
 
-  const stream = await keystream(password, streamLen(), params);
+  const fingerprint = await coverFingerprintJpeg(model);
+  const stream = await keystream(password, streamLen(), params, fingerprint);
   const pad = stream.subarray(0, PAYLOAD_LEN);
   const reader = new StreamReader(stream.subarray(PAYLOAD_LEN));
   const positions = pickPositions(reader, carriers.count, PAYLOAD_BITS);
@@ -370,7 +445,9 @@ export async function embedBytesStegoRgba(
   const payloadBits = data.length * 8;
   if (capacity < payloadBits * margin) throw new StegoCapacityError(capacity);
 
-  const stream = await keystreamFromSeed(seed, positionStreamLen(payloadBits));
+  const ckey = await coverKey(seed, await coverFingerprintRgba(rgba, width, height));
+  const stream = await keystreamFromSeed(ckey, positionStreamLen(payloadBits));
+  ckey.fill(0);
   const positions = pickPositions(new StreamReader(stream), capacity, payloadBits);
   for (let i = 0; i < payloadBits; i++) {
     const bit = (data[i >> 3]! >> (7 - (i & 7))) & 1;
@@ -398,7 +475,9 @@ export async function extractBytesStegoRgba(
   const payloadBits = length * 8;
   if (capacity < payloadBits * margin) return null;
 
-  const stream = await keystreamFromSeed(seed, positionStreamLen(payloadBits));
+  const ckey = await coverKey(seed, await coverFingerprintRgba(rgba, width, height));
+  const stream = await keystreamFromSeed(ckey, positionStreamLen(payloadBits));
+  ckey.fill(0);
   const positions = pickPositions(new StreamReader(stream), capacity, payloadBits);
   const out = new Uint8Array(length);
   for (let i = 0; i < payloadBits; i++) {
@@ -431,7 +510,9 @@ export async function embedBytesStegoJpeg(
   const model = decodeJpeg(jpegBytes); // throws JpegUnsupportedError if not baseline
   const payloadBits = data.length * 8;
   const bitAt = (i: number): number => (data[i >> 3]! >> (7 - (i & 7))) & 1;
-  const stream = await keystreamFromSeed(seed, positionStreamLen(payloadBits));
+  const ckey = await coverKey(seed, await coverFingerprintJpeg(model));
+  const stream = await keystreamFromSeed(ckey, positionStreamLen(payloadBits));
+  ckey.fill(0);
 
   if (model.restartInterval === 0) {
     const carriers = eligibleInPlace(model);
@@ -465,16 +546,19 @@ export async function extractBytesStegoJpeg(
   length: number,
   margin = 1,
 ): Promise<Uint8Array | null> {
-  let carriers: ReturnType<typeof eligibleCoefficients>;
+  let model: JpegModel;
   try {
-    carriers = eligibleCoefficients(decodeJpeg(jpegBytes));
+    model = decodeJpeg(jpegBytes);
   } catch {
     return null;
   }
+  const carriers = eligibleCoefficients(model);
   const payloadBits = length * 8;
   if (carriers.count < payloadBits * margin) return null;
 
-  const stream = await keystreamFromSeed(seed, positionStreamLen(payloadBits));
+  const ckey = await coverKey(seed, await coverFingerprintJpeg(model));
+  const stream = await keystreamFromSeed(ckey, positionStreamLen(payloadBits));
+  ckey.fill(0);
   const positions = pickPositions(new StreamReader(stream), carriers.count, payloadBits);
   const out = new Uint8Array(length);
   for (let i = 0; i < payloadBits; i++) {
