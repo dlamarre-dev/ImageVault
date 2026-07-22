@@ -348,32 +348,36 @@ Two variants:
 
 ```
 branded    [ MAGIC "SSBN" = 53 53 42 4E ][ VERSION u8 = 1 ][ vault blob (§6) ]
-disguised  [ SQLite database 1024 (see below) ][ vault blob (§6) ]
+disguised  a complete SQLite 3 database whose `cache` table holds the vault blob
 ```
 
 - **Branded** (`.ssbn`) is self-labelling: easy for the owner to recognize; it
   makes no attempt to hide.
-- **Disguised** (`.db`) prepends a **complete, valid SQLite 3 database** — a fixed
-  1024-byte constant (two 512-byte pages) holding a `notes` table with a few
-  innocuous dummy rows — and appends the vault blob **after the DB's last page**.
-  SQLite trusts the header's page-count (offset 28 == the real count; change
-  counter 24 == version-valid-for 96) and reads only those pages, ignoring the
-  trailing bytes — so `sqlite3 cache.db "SELECT * FROM notes"` opens cleanly and
-  lists the dummy rows, and `PRAGMA integrity_check` passes. This is deniability
-  against a **casual open** (type triage *and* a quick `sqlite3` peek), still not
-  a forensic adversary who notices the high-entropy tail (see
-  `docs/CRYPTO-REVIEW.md` §6b). The database is a frozen constant, byte-identical
-  across implementations.
+- **Disguised** (`.db`) is a **complete, structurally valid SQLite 3 database**
+  (4096-byte pages) with a `cache(k TEXT, v BLOB)` table. The vault blob is the
+  BLOB value `v` of the row keyed `k = 'page_cache'`, stored across a proper
+  **overflow-page chain**; a couple of small decoy rows precede it. The header's
+  page-count (offset 28) equals the real page count and the change counter (24)
+  equals version-valid-for (92). Crucially there are **no trailing bytes past the
+  database's logical end**: `file size == page_count × page_size`. So
+  `sqlite3 cache.db "SELECT * FROM cache"` opens cleanly, `PRAGMA integrity_check`
+  returns `ok`, and structural triage (size vs. page count, header scan) finds
+  nothing amiss. The remaining tell is that one BLOB value is high-entropy — a
+  content-level observation, not a structural one (see `docs/CRYPTO-REVIEW.md`
+  §6b). The database is generated deterministically and is byte-identical across
+  implementations; the reader reassembles the `page_cache` row's BLOB from the
+  b-tree and overflow chain.
 
 The **external key** (keyfile mode, `KB_LEN = 0`) MAY be delivered the same way:
 the 92-byte key block (§5.1) wrapped in a branded or disguised container. Stego
 key delivery (§5.3/§5.4) is unchanged — the key stays a cover image.
 
 **Restore.** Detect the variant by its leading signature (the branded magic, or
-the disguised database's header) and strip the full prefix to recover the blob;
-bytes matching neither variant are treated as a bare blob, letting AES-GCM be the
-final arbiter. Then decrypt exactly as §6/§5. The gzip guard (§4) uses the binary size
-cap (below), which also bounds decompression on this path.
+the SQLite header). Branded strips its 5-byte prefix; disguised parses the
+database and reassembles the `page_cache` BLOB. Bytes matching neither variant
+(or a SQLite file that is not one of ours) are treated as a bare blob, letting
+AES-GCM be the final arbiter. Then decrypt exactly as §6/§5. The gzip guard (§4)
+uses the binary size cap (below), which also bounds decompression on this path.
 
 Canonical filenames used by the reference implementations: branded
 `stegoshard-vault.ssbn` / `stegoshard-key.ssbn`; disguised `cache.db` /
@@ -481,7 +485,7 @@ them — amplified vs. single-image stego (see `docs/CRYPTO-REVIEW.md`).
 | `FORMAT_VERSION` | 1                                                             |
 | Header magic     | `"SSHD"`                                                      |
 | Key block magic  | `"SSKY"`                                                      |
-| Binary magic     | `"SSBN"` (branded); 1024-byte SQLite database (disguised) (§8) |
+| Binary magic     | `"SSBN"` (branded); SQLite DB, blob in `cache` table (disguised) (§8) |
 | Header length    | 33 bytes                                                      |
 | Codec IDs        | `0` QR-grid; `1` gallery (§9)                                 |
 | Cipher           | AES-256-GCM, 12-byte IV, 16-byte tag                          |

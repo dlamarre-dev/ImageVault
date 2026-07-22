@@ -10,7 +10,6 @@ import pytest
 
 from stegoshard.binary_container import (
     BINARY_MAGIC,
-    SQLITE_TEMPLATE,
     unwrap_binary,
     wrap_binary,
 )
@@ -24,20 +23,22 @@ def test_branded_round_trip():
     assert payload == b"\x01\x02\x03"
 
 
-def test_disguised_has_sqlite_header():
+def test_disguised_is_valid_sqlite_with_no_trailing_bytes():
     wrapped = wrap_binary(b"\x09\x08", "disguised")
     assert wrapped[:16] == b"SQLite format 3\x00"
-    assert wrapped[16:18] == b"\x02\x00"  # page size 512
-    assert wrapped[: len(SQLITE_TEMPLATE)] == SQLITE_TEMPLATE  # full DB prefix
+    assert wrapped[16:18] == b"\x10\x00"  # page size 4096
+    page_count = int.from_bytes(wrapped[28:32], "big")
+    assert len(wrapped) == page_count * 4096  # no unreferenced trailing bytes
     payload, variant = unwrap_binary(wrapped)
     assert variant == "disguised"
     assert payload == b"\x09\x08"
 
 
 def test_disguised_opens_in_sqlite():
-    """The disguised container is a real DB: sqlite3 opens it and lists the dummy
-    rows, ignoring the ciphertext appended after the last page."""
-    wrapped = wrap_binary(os.urandom(5000), "disguised")
+    """The disguised container is a real DB whose `cache` table holds the payload
+    as the `page_cache` row's BLOB; sqlite3 opens it and integrity_check passes."""
+    blob = os.urandom(50_000)
+    wrapped = wrap_binary(blob, "disguised")
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     try:
@@ -45,9 +46,9 @@ def test_disguised_opens_in_sqlite():
             f.write(wrapped)
         con = sqlite3.connect(path)
         assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        titles = [r[0] for r in con.execute("SELECT title FROM notes ORDER BY id")]
+        row = con.execute("SELECT v FROM cache WHERE k='page_cache'").fetchone()
         con.close()
-        assert titles == ["Groceries", "Todo", "Ideas"]
+        assert row[0] == blob
     finally:
         os.remove(path)
 

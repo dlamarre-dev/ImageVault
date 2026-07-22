@@ -21,18 +21,19 @@ describe('binary container wrap/unwrap', () => {
     expect(binaryExtension('branded')).toBe('ssbn');
   });
 
-  it('disguises as a complete, openable SQLite database (payload appended)', () => {
-    const payload = Uint8Array.from([9, 8, 7]);
+  it('disguises as a structurally valid SQLite database with no trailing bytes', () => {
+    const payload = Uint8Array.from({ length: 20_000 }, (_, i) => (i * 37) & 0xff);
     const wrapped = wrapBinary(payload, 'disguised');
     // A real SQLite header: magic string...
     expect(new TextDecoder().decode(wrapped.slice(0, 15))).toBe('SQLite format 3');
     expect(wrapped[15]).toBe(0);
-    // ...and a valid page-size at offset 16 (what file(1) validates).
+    // ...page size 4096 at offset 16...
     const pageSize = (wrapped[16]! << 8) | wrapped[17]!;
-    expect(pageSize).toBe(512); // a power of two in [512, 65536]
-    // The DB prefix is a real 1 KB database; the payload rides after its last page,
-    // so `wrapped` is longer than the payload and unwrap recovers it exactly.
-    expect(wrapped.length).toBeGreaterThan(payload.length + 512);
+    expect(pageSize).toBe(4096);
+    // ...and NO unreferenced trailing bytes: file size == page_count × page_size.
+    const dv = new DataView(wrapped.buffer, wrapped.byteOffset, wrapped.byteLength);
+    const pageCount = dv.getUint32(28, false);
+    expect(wrapped.length).toBe(pageCount * pageSize);
     const un = unwrapBinary(wrapped);
     expect(un?.variant).toBe('disguised');
     expect([...un!.payload]).toEqual([...payload]);

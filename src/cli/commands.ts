@@ -39,6 +39,7 @@ import {
   getCodec,
   importVault,
   importVaultBinary,
+  looksLikeBinaryContainer,
   serializeKeyBlock,
   toHex,
   unwrapBinary,
@@ -276,10 +277,11 @@ function isBinaryContainerFile(path: string): boolean {
   try {
     fd = openSync(path, 'r');
     if (!fstatSync(fd).isFile()) return false;
-    // Enough to cover the disguised variant's 100-byte SQLite detection head.
+    // A head peek is enough to recognise the container (branded magic or the
+    // SQLite header); full extraction happens later on the whole file.
     const buf = Buffer.alloc(128);
     const n = readSync(fd, buf, 0, 128, 0);
-    return unwrapBinary(new Uint8Array(buf.subarray(0, n))) !== null;
+    return looksLikeBinaryContainer(new Uint8Array(buf.subarray(0, n)));
   } catch {
     return false;
   } finally {

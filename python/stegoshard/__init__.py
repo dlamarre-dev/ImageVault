@@ -26,6 +26,9 @@ _LAZY = {
     "extract_key_block_from_image": "stego",
     "unwrap_binary": "binary_container",
     "wrap_binary": "binary_container",
+    "looks_like_binary_container": "binary_container",
+    "pack_sqlite": "sqlite_container",
+    "unpack_sqlite": "sqlite_container",
 }
 
 __all__ = list(_LAZY)

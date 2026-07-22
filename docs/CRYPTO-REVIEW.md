@@ -238,27 +238,32 @@ the §5.1 key block).
 
 ## 6b. Disguised binary container (SPEC §8)
 
-**Claim: the disguised binary variant is a real, openable SQLite database — it
-survives type triage *and* a casual `sqlite3` open — but not forensic scrutiny.**
+**Claim: the disguised binary variant is a structurally valid SQLite database
+with no unreferenced bytes — it survives type triage, a `sqlite3` open, AND a
+size-vs-page-count structural check — leaving only a content-level tell.**
 
 The binary output (SPEC §8) wraps the vault blob (§6) in a single file. The blob
 is already an authenticated AES-256-GCM ciphertext, so neither variant changes
 the confidentiality boundary — the container is packaging. The **disguised**
-variant prepends a **complete, valid 1024-byte SQLite 3 database** (two 512-byte
-pages, a `notes` table with innocuous dummy rows) and appends the vault blob after
-the database's last page. Because the header's page-count (offset 28) matches the
-real page count and its change-counter (24) equals the version-valid-for (96),
-SQLite reads only those two pages and ignores the trailing bytes: `sqlite3
-cache.db "SELECT * FROM notes"` opens and lists the dummy rows, and `PRAGMA
-integrity_check` returns `ok`. So the file fools not just `file(1)`/extension
-triage but also anyone who *opens* it to take a quick look.
+variant (`src/core/sqlite-container.ts`, mirrored in
+`python/stegoshard/sqlite_container.py`) is a **complete SQLite 3 database** with
+4096-byte pages and a `cache(k TEXT, v BLOB)` table. The vault blob is the BLOB of
+the row keyed `page_cache`, stored across a **proper overflow-page chain**, with a
+couple of small decoy rows. The header's page-count (28) matches the real page
+count and its change-counter (24) equals version-valid-for (92), and — the key
+improvement over the earlier append-after-the-DB layout — **`file size ==
+page_count × page_size`, with no bytes past the database's logical end**. So
+`sqlite3 cache.db "SELECT * FROM cache"` opens and reads the rows, `PRAGMA
+integrity_check` returns `ok`, and the classic forensic tell (a file longer than
+its page count, or a high-entropy tail no page references) is **gone**.
 
-**Honest limits (stated in the module and docs):** the appended vault blob is
-high-entropy ciphertext sitting past the DB's logical end. A forensic examiner who
-compares the file length against `page_count × page_size`, or hexdumps the tail,
-sees ~4× the database's worth of random bytes that no SQLite page references — a
-clear tell. So this is deniability against a **casual open**, never a claim of
-indistinguishability from a genuine database under scrutiny. The **branded**
+**Honest limit (stated in the module and docs):** the vault row is one large
+high-entropy BLOB. An examiner who inspects *values* (not just structure) can
+observe that a `cache` holding ~megabytes of incompressible random bytes is
+unusual. This is a **content-level** observation, not a structural one — the file
+is a bona-fide database. So the bar is raised from "casual open" to "content
+analysis of the row values"; it is still not a claim of indistinguishability from
+a genuine application database to a determined forensic adversary. The **branded**
 variant makes no attempt to hide (it is self-labelling by design). Both are
 defense-in-depth on top of the password-wrapped key block, exactly like the stego
 carriers (§6a).
