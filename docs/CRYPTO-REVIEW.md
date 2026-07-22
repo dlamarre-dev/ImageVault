@@ -328,3 +328,54 @@ npm run fixtures -- python/tests/_fixtures
 pip install -r python/requirements.txt
 pytest python -q                          # Python conformance + cross-impl vectors
 ```
+
+## 9. Post-quantum readiness
+
+**Claim: StegoShard has no quantum-vulnerable cryptography, and none is at risk of
+being introduced silently.**
+
+The scheme is **entirely symmetric**: `Argon2id` (KDF) → `AES-256-GCM` (AEAD) →
+`HKDF-SHA256` (subkey separation), with `AES-256-CTR` as a keystream PRF in the stego
+layer (§6a). There is **no asymmetric cryptography anywhere** — no RSA, no
+Diffie-Hellman, no elliptic curves (ECDH/ECDSA/Ed25519) — so **Shor's algorithm has
+nothing to break**. The only asymmetric operations in the product's runtime are inside
+TLS when the optional Google Photos integration talks to Google, which is the OS/browser's
+transport, not part of the vault format.
+
+Against **Grover's algorithm**, the symmetric primitives keep an adequate margin:
+AES-256 retains ~128-bit effective key strength and SHA-256 ~128-bit collision
+resistance post-quantum — both above the 112-bit floor NIST accepts for long-term use.
+No migration to PQC (ML-KEM / ML-DSA) is required, because there is no key-establishment
+or signature step to migrate.
+
+**Continuous verification.** The CI `crypto-scan` job (`.github/workflows/ci.yml`) runs
+the QRAMM scanners on every push/PR and **fails on any new HIGH/CRITICAL algorithm**
+(`.cryptoscan.yaml`, `failOn: high`) — the guard that stops a future contributor from
+quietly adding MD5, RC4, RSA, DES, etc. A Cryptographic Bill of Materials (CBOM,
+CycloneDX) is emitted as a build artifact.
+
+Reproduce locally (scanners are Go, `go 1.21+`):
+
+```bash
+go install github.com/csnp/cryptoscan/cmd/cryptoscan@v1.3.0
+go install github.com/csnp/qramm-cryptodeps/cmd/cryptodeps@v1.2.2
+cryptoscan scan .                 # source gate; auto-detects .cryptoscan.yaml
+cryptodeps analyze .              # dependency view (capability-based, informational)
+```
+
+**Reading the results honestly.** These are keyword/dependency scanners, so a raw run
+reports expected noise that `.cryptoscan.yaml` documents and suppresses:
+
+- **"ECC" (flagged VULNERABLE) is a false positive** — it matches the QR *Error
+  Correction Code* level (`ecc: 'L'|'M'|'Q'|'H'`), not elliptic-curve crypto.
+- **"PBKDF-001 / low iterations" is a false positive** — it matches the Argon2id
+  *time-cost* (`t=3`, plus deliberate `0/1/16/17` boundary values in the hardening
+  tests), not a weak PBKDF2 iteration count.
+- **cryptodeps flags `hash-wasm` (MD5/SHA-1) and `cryptography` (RSA/ECC)** by library
+  *capability*: those algorithms exist in the libraries but StegoShard calls only
+  Argon2id (hash-wasm) and AES-256-GCM (pyca `cryptography`). npm/pypi reachability
+  analysis is not available (it is Go-only in the tool), hence the over-report.
+
+The intentional design choices these tools also surface — the fixed stego/gallery
+salts (§6a, §6c) and the 4-byte truncated SHA-256 header hint (§7.4) — are covered in
+their own sections above.
