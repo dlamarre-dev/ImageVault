@@ -17,8 +17,10 @@ Scope: `src/core/crypto.ts` (primitives + key block), `src/core/vault.ts`
   the clear; the keystore holds it wrapped.
 - **KEK** (key encryption key): derived from the password with **Argon2id**
   (hash-wasm, audited WASM build of the reference algorithm), 32-byte output,
-  16-byte random salt. Production parameters: `t=3, m=64 MiB, p=1`
-  (`DEFAULT_ARGON2`).
+  16-byte random salt. Production parameters: `t=4, m=256 MiB, p=1`
+  (`DEFAULT_ARGON2`) — calibrated for a ~1–2 s desktop unlock while remaining
+  viable in a browser tab, and several times more costly to brute-force than the
+  earlier 64 MiB × t=3 baseline.
 - **Key block:** `AES-256-GCM(KEK, rawDEK)` with a random 12-byte IV, plus the
   Argon2id parameters and salt, serialized per SPEC §5.1. The GCM tag makes the
   block self-authenticating: a wrong password cannot unwrap it.
@@ -42,13 +44,16 @@ Scope: `src/core/crypto.ts` (primitives + key block), `src/core/vault.ts`
   - a distribution sanity check on 64 KiB of output.
 
 **IV collision bound (honest statement).** IVs are random 96-bit values, not a
-counter, and the keystore reuses one DEK across vaults. Random IVs cannot make
-reuse _impossible_; the standard bound applies (NIST SP 800-38D): keep
-invocations per key ≤ 2³² for a collision probability ≤ 2⁻³². One invocation
-here is one vault export (plus one DEK wrap per password change). A user would
-need billions of exports against the same key for this bound to matter; the
-practical exposure is nil, but reviewers should know the design relies on the
-probabilistic bound, not on a nonce counter.
+counter. The keystore reuses one DEK across vaults, but the content is **not**
+encrypted under the DEK directly: each export derives a fresh per-export content
+key `CEK = HKDF-SHA256(DEK, salt = contentSalt, info = "stegoshard/vault/content")`
+with a random 16-byte `contentSalt` stored in the blob (SPEC §6, `deriveContentKey`
+in `crypto.ts`). So the AES-GCM random-IV collision bound (NIST SP 800-38D: keep
+invocations per key ≤ 2³² for a collision probability ≤ 2⁻³²) applies **per
+export** — one export is a single content encryption under its own CEK — instead
+of accumulating across every export made under the shared DEK. Reviewers should
+note the guarantee now rests on per-export key separation, not merely on the
+low expected export count.
 
 ## 3. Key material lifecycle
 
@@ -160,10 +165,21 @@ photo with natural LSB noise; the layer is not a cheap password oracle.**
 `src/core/stego.ts` hides the 92-byte key block in the RGB least-significant
 bits of a cover photo (SPEC §5.3). Reviewer-relevant properties:
 
-- **Password-keyed positions + whitening.** `Argon2id(NFC(password), fixed salt)`
-  seeds an AES-256-CTR stream that both XOR-whitens the payload and chooses the
-  ~736 carrier LSBs by unbiased rejection sampling. Carrier bits are therefore
-  uniform, and their locations are unknown without the password.
+- **Password-keyed positions + whitening, bound to the cover.** `Argon2id(NFC(password),
+  fixed salt)` produces a seed, which is combined with a **fingerprint of the cover**
+  via `HKDF-SHA256(seed, salt = fp, info = "stegoshard/stego/cover")` to key an
+  AES-256-CTR stream that both XOR-whitens the payload and chooses the ~736 carrier
+  LSBs by unbiased rejection sampling. Carrier bits are uniform and their locations
+  are unknown without the password. The fingerprint is taken over exactly the bits
+  embedding never touches (RGB with the LSB masked; JPEG coefficient magnitudes with
+  bit 0 masked), so it is identical at embed and extract and **nothing extra is
+  stored** — yet the whitening pad and carrier layout are now unique per cover. This
+  closes a reuse gap: without it, the same password over two same-size covers reused
+  one pad and one position set (an XOR-of-plaintexts / carrier-correlation leak across
+  images); now every cover is independent. Gallery Mode (§6c) deliberately does **not**
+  use this binding: its slots are independent AES-GCM messages (fresh random nonce, no
+  whitening), so repeated carrier positions across covers leak nothing and a per-cover
+  hash would be cost without benefit.
 - **No structure on the wire.** Fixed payload length, no magic/length/header in
   the image. Wrong-password extraction yields random bytes that fail the §5.1
   key-block magic check and is reported identically to "no key here"
@@ -224,27 +240,32 @@ the §5.1 key block).
 
 ## 6b. Disguised binary container (SPEC §8)
 
-**Claim: the disguised binary variant is a real, openable SQLite database — it
-survives type triage *and* a casual `sqlite3` open — but not forensic scrutiny.**
+**Claim: the disguised binary variant is a structurally valid SQLite database
+with no unreferenced bytes — it survives type triage, a `sqlite3` open, AND a
+size-vs-page-count structural check — leaving only a content-level tell.**
 
 The binary output (SPEC §8) wraps the vault blob (§6) in a single file. The blob
 is already an authenticated AES-256-GCM ciphertext, so neither variant changes
 the confidentiality boundary — the container is packaging. The **disguised**
-variant prepends a **complete, valid 1024-byte SQLite 3 database** (two 512-byte
-pages, a `notes` table with innocuous dummy rows) and appends the vault blob after
-the database's last page. Because the header's page-count (offset 28) matches the
-real page count and its change-counter (24) equals the version-valid-for (96),
-SQLite reads only those two pages and ignores the trailing bytes: `sqlite3
-cache.db "SELECT * FROM notes"` opens and lists the dummy rows, and `PRAGMA
-integrity_check` returns `ok`. So the file fools not just `file(1)`/extension
-triage but also anyone who *opens* it to take a quick look.
+variant (`src/core/sqlite-container.ts`, mirrored in
+`python/stegoshard/sqlite_container.py`) is a **complete SQLite 3 database** with
+4096-byte pages and a `cache(k TEXT, v BLOB)` table. The vault blob is the BLOB of
+the row keyed `page_cache`, stored across a **proper overflow-page chain**, with a
+couple of small decoy rows. The header's page-count (28) matches the real page
+count and its change-counter (24) equals version-valid-for (92), and — the key
+improvement over the earlier append-after-the-DB layout — **`file size ==
+page_count × page_size`, with no bytes past the database's logical end**. So
+`sqlite3 cache.db "SELECT * FROM cache"` opens and reads the rows, `PRAGMA
+integrity_check` returns `ok`, and the classic forensic tell (a file longer than
+its page count, or a high-entropy tail no page references) is **gone**.
 
-**Honest limits (stated in the module and docs):** the appended vault blob is
-high-entropy ciphertext sitting past the DB's logical end. A forensic examiner who
-compares the file length against `page_count × page_size`, or hexdumps the tail,
-sees ~4× the database's worth of random bytes that no SQLite page references — a
-clear tell. So this is deniability against a **casual open**, never a claim of
-indistinguishability from a genuine database under scrutiny. The **branded**
+**Honest limit (stated in the module and docs):** the vault row is one large
+high-entropy BLOB. An examiner who inspects *values* (not just structure) can
+observe that a `cache` holding ~megabytes of incompressible random bytes is
+unusual. This is a **content-level** observation, not a structural one — the file
+is a bona-fide database. So the bar is raised from "casual open" to "content
+analysis of the row values"; it is still not a claim of indistinguishability from
+a genuine application database to a determined forensic adversary. The **branded**
 variant makes no attempt to hide (it is self-labelling by design). Both are
 defense-in-depth on top of the password-wrapped key block, exactly like the stego
 carriers (§6a).
@@ -315,9 +336,9 @@ has them.
    for fast triage of reconstruction errors. The security boundary is the GCM
    tag, never this hash.
 5. **Zeroization is best-effort** in a garbage-collected runtime (§3).
-6. **DEK reuse across vaults** relies on the random-IV bound (§2). A future
-   format version could derive a per-export subkey if this ever became a
-   concern.
+6. **DEK reuse across vaults** is decoupled from the IV bound by the per-export
+   content key (§2): the shared DEK never encrypts content directly, so each
+   export gets an independent AES-GCM key and the collision bound is per-export.
 
 ## 8. How to reproduce
 
@@ -328,3 +349,54 @@ npm run fixtures -- python/tests/_fixtures
 pip install -r python/requirements.txt
 pytest python -q                          # Python conformance + cross-impl vectors
 ```
+
+## 9. Post-quantum readiness
+
+**Claim: StegoShard has no quantum-vulnerable cryptography, and none is at risk of
+being introduced silently.**
+
+The scheme is **entirely symmetric**: `Argon2id` (KDF) → `AES-256-GCM` (AEAD) →
+`HKDF-SHA256` (subkey separation), with `AES-256-CTR` as a keystream PRF in the stego
+layer (§6a). There is **no asymmetric cryptography anywhere** — no RSA, no
+Diffie-Hellman, no elliptic curves (ECDH/ECDSA/Ed25519) — so **Shor's algorithm has
+nothing to break**. The only asymmetric operations in the product's runtime are inside
+TLS when the optional Google Photos integration talks to Google, which is the OS/browser's
+transport, not part of the vault format.
+
+Against **Grover's algorithm**, the symmetric primitives keep an adequate margin:
+AES-256 retains ~128-bit effective key strength and SHA-256 ~128-bit collision
+resistance post-quantum — both above the 112-bit floor NIST accepts for long-term use.
+No migration to PQC (ML-KEM / ML-DSA) is required, because there is no key-establishment
+or signature step to migrate.
+
+**Continuous verification.** The CI `crypto-scan` job (`.github/workflows/ci.yml`) runs
+the QRAMM scanners on every push/PR and **fails on any new HIGH/CRITICAL algorithm**
+(`.cryptoscan.yaml`, `failOn: high`) — the guard that stops a future contributor from
+quietly adding MD5, RC4, RSA, DES, etc. A Cryptographic Bill of Materials (CBOM,
+CycloneDX) is emitted as a build artifact.
+
+Reproduce locally (scanners are Go, `go 1.21+`):
+
+```bash
+go install github.com/csnp/cryptoscan/cmd/cryptoscan@v1.3.0
+go install github.com/csnp/qramm-cryptodeps/cmd/cryptodeps@v1.2.2
+cryptoscan scan .                 # source gate; auto-detects .cryptoscan.yaml
+cryptodeps analyze .              # dependency view (capability-based, informational)
+```
+
+**Reading the results honestly.** These are keyword/dependency scanners, so a raw run
+reports expected noise that `.cryptoscan.yaml` documents and suppresses:
+
+- **"ECC" (flagged VULNERABLE) is a false positive** — it matches the QR *Error
+  Correction Code* level (`ecc: 'L'|'M'|'Q'|'H'`), not elliptic-curve crypto.
+- **"PBKDF-001 / low iterations" is a false positive** — it matches the Argon2id
+  *time-cost* (`t=3`, plus deliberate `0/1/16/17` boundary values in the hardening
+  tests), not a weak PBKDF2 iteration count.
+- **cryptodeps flags `hash-wasm` (MD5/SHA-1) and `cryptography` (RSA/ECC)** by library
+  *capability*: those algorithms exist in the libraries but StegoShard calls only
+  Argon2id (hash-wasm) and AES-256-GCM (pyca `cryptography`). npm/pypi reachability
+  analysis is not available (it is Go-only in the tool), hence the over-report.
+
+The intentional design choices these tools also surface — the fixed stego/gallery
+salts (§6a, §6c) and the 4-byte truncated SHA-256 header hint (§7.4) — are covered in
+their own sections above.

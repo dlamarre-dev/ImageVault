@@ -845,5 +845,35 @@
   "footerSource": {
     "message": "Quellcode (MIT)",
     "description": "Web footer: source-code link."
+  },
+  "pwVeryWeak": {
+    "message": "Sehr schwach"
+  },
+  "pwWeak": {
+    "message": "Schwach"
+  },
+  "pwFair": {
+    "message": "Mittel"
+  },
+  "pwGood": {
+    "message": "Gut"
+  },
+  "pwStrong": {
+    "message": "Stark"
+  },
+  "pwBits": {
+    "message": "Bit"
+  },
+  "pwGenerate": {
+    "message": "Starke Passphrase erzeugen"
+  },
+  "badgeDeniable": {
+    "message": "Abstreitbar"
+  },
+  "badgeOvert": {
+    "message": "Offen"
+  },
+  "modeLegend": {
+    "message": "Abstreitbare Modi tarnen sich als gewöhnliche Dateien; die übrigen sind offen StegoShard."
   }
 }

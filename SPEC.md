@@ -135,8 +135,8 @@ bytes after `wrappedDEK` (exactly `44 + wrappedLen` bytes total).
 
 - **KDF:** Argon2id, `hashLength = 32` (the KEK is a 256-bit AES-GCM key).
   Parameters are stored in the block so any decoder can reproduce the derivation.
-  The extension's production defaults are `iterations = 3`, `memoryKiB = 65536`
-  (64 MiB), `parallelism = 1`.
+  The extension's production defaults are `iterations = 4`, `memoryKiB = 262144`
+  (256 MiB), `parallelism = 1`.
 - **Password normalization:** the password MUST be normalized to **Unicode NFC**
   and encoded as **UTF-8** before it is fed to Argon2id. This makes the KEK
   depend on the text, not on how a particular platform or keyboard happened to
@@ -193,7 +193,17 @@ Derivation (all decoders MUST reproduce it bit-for-bit):
    `STEGO_SALT` is the fixed 16 bytes `53 74 65 67 6F 53 68 61 72 64 2D 73 74 65 67 6F`
    (ASCII `"StegoShard-stego"`) and `params` are the caller's Argon2id
    cost parameters (the extension uses the §5.1 production defaults).
-2. `stream = AES-256-CTR(key = seed, counter = 0¹²⁸)` applied to zero bytes,
+1a. **Cover fingerprint:** `fp = SHA-256(coverInvariant)`, where `coverInvariant`
+   is the concatenation, in pixel order, of each RGB channel byte with its LSB
+   masked off (`byte & 0xFE`; alpha excluded) — i.e. exactly the bits embedding
+   never changes. `key = HKDF-SHA256(ikm = seed, salt = fp,
+   info = "stegoshard/stego/cover", L = 32)`. Because `fp` depends only on
+   embedding-invariant bits it is identical at embed and extract, so **nothing is
+   stored in the image** — the "no header/magic/length" property is preserved.
+   This binds the keystream to the specific cover: the same password over two
+   different covers (or the same cover reused) never repeats the whitening pad or
+   the carrier layout.
+2. `stream = AES-256-CTR(key, counter = 0¹²⁸)` applied to zero bytes,
    generating as many bytes as needed. The first `KEY_BLOCK_LEN` bytes are the
    **whitening pad**; the remainder feeds position selection.
 3. **Whiten:** `whitened = keyBlock XOR pad`.
@@ -215,8 +225,14 @@ sequential Huffman (SOF0), 8-bit, is supported; progressive (SOF2), arithmetic
 coding, and other formats (HEIC, WebP) MUST be rejected — never transcoded, which
 would change the file's size/appearance and defeat deniability.
 
-The keyed selection, whitening pad, MSB-first bit order, and §5.1 validation are
-**identical to §5.3** — only the carrier differs:
+The keyed selection, whitening pad, MSB-first bit order, per-cover keystream
+binding (step 1a), and §5.1 validation are **identical to §5.3** — only the
+carrier and the cover fingerprint differ. For a JPEG the fingerprint is
+`fp = SHA-256(concat over eligible carriers, in carrier order, of the signed
+coefficient magnitude with bit 0 masked off, encoded big-endian int32)` — again
+exactly the content embedding leaves unchanged (`|coef| ≥ 2` is preserved and
+only the magnitude LSB is touched), so it is identical at embed and extract and
+nothing is stored. Only the carrier differs:
 
 - **Carrier set:** every quantized **AC** coefficient (zig-zag indices 1..63; the
   DC coefficient is never used) whose value satisfies **|coef| ≥ 2**, enumerated
@@ -245,11 +261,19 @@ The blob is what gets erasure-coded and split across images. It bundles everythi
 needed (besides the password) to decrypt:
 
 ```
-[ KB_LEN u16 ][ key block (KB_LEN bytes, §5.1) ][ IV 12 ][ ciphertext (§5) ]
+[ KB_LEN u16 ][ key block (KB_LEN bytes, §5.1) ][ contentSalt 16 ][ IV 12 ][ ciphertext (§5) ]
 ```
 
 `KB_LEN` is `0` for the keyfile/stego modes (§5.2); the key block is then
 supplied externally at restore time.
+
+The `ciphertext` is not encrypted under the DEK directly but under a **per-export
+content key** `CEK = HKDF-SHA256(DEK, salt = contentSalt, info =
+"stegoshard/vault/content")`, where `contentSalt` is 16 fresh random bytes stored
+above. The DEK is reused across vaults (one lives in the keystore); deriving a
+fresh CEK per export keeps the AES-GCM random-IV collision bound (§5) per-export
+instead of accumulating across every export under the shared DEK. Every conforming
+decoder MUST derive the CEK identically.
 
 `BLOB_LEN` in each header (§3) records the blob's true length so padding added
 during sharding (§7) can be stripped after reconstruction. `HASH_GLOBAL` is
@@ -324,32 +348,36 @@ Two variants:
 
 ```
 branded    [ MAGIC "SSBN" = 53 53 42 4E ][ VERSION u8 = 1 ][ vault blob (§6) ]
-disguised  [ SQLite database 1024 (see below) ][ vault blob (§6) ]
+disguised  a complete SQLite 3 database whose `cache` table holds the vault blob
 ```
 
 - **Branded** (`.ssbn`) is self-labelling: easy for the owner to recognize; it
   makes no attempt to hide.
-- **Disguised** (`.db`) prepends a **complete, valid SQLite 3 database** — a fixed
-  1024-byte constant (two 512-byte pages) holding a `notes` table with a few
-  innocuous dummy rows — and appends the vault blob **after the DB's last page**.
-  SQLite trusts the header's page-count (offset 28 == the real count; change
-  counter 24 == version-valid-for 96) and reads only those pages, ignoring the
-  trailing bytes — so `sqlite3 cache.db "SELECT * FROM notes"` opens cleanly and
-  lists the dummy rows, and `PRAGMA integrity_check` passes. This is deniability
-  against a **casual open** (type triage *and* a quick `sqlite3` peek), still not
-  a forensic adversary who notices the high-entropy tail (see
-  `docs/CRYPTO-REVIEW.md` §6b). The database is a frozen constant, byte-identical
-  across implementations.
+- **Disguised** (`.db`) is a **complete, structurally valid SQLite 3 database**
+  (4096-byte pages) with a `cache(k TEXT, v BLOB)` table. The vault blob is the
+  BLOB value `v` of the row keyed `k = 'page_cache'`, stored across a proper
+  **overflow-page chain**; a couple of small decoy rows precede it. The header's
+  page-count (offset 28) equals the real page count and the change counter (24)
+  equals version-valid-for (92). Crucially there are **no trailing bytes past the
+  database's logical end**: `file size == page_count × page_size`. So
+  `sqlite3 cache.db "SELECT * FROM cache"` opens cleanly, `PRAGMA integrity_check`
+  returns `ok`, and structural triage (size vs. page count, header scan) finds
+  nothing amiss. The remaining tell is that one BLOB value is high-entropy — a
+  content-level observation, not a structural one (see `docs/CRYPTO-REVIEW.md`
+  §6b). The database is generated deterministically and is byte-identical across
+  implementations; the reader reassembles the `page_cache` row's BLOB from the
+  b-tree and overflow chain.
 
 The **external key** (keyfile mode, `KB_LEN = 0`) MAY be delivered the same way:
 the 92-byte key block (§5.1) wrapped in a branded or disguised container. Stego
 key delivery (§5.3/§5.4) is unchanged — the key stays a cover image.
 
 **Restore.** Detect the variant by its leading signature (the branded magic, or
-the disguised database's header) and strip the full prefix to recover the blob;
-bytes matching neither variant are treated as a bare blob, letting AES-GCM be the
-final arbiter. Then decrypt exactly as §6/§5. The gzip guard (§4) uses the binary size
-cap (below), which also bounds decompression on this path.
+the SQLite header). Branded strips its 5-byte prefix; disguised parses the
+database and reassembles the `page_cache` BLOB. Bytes matching neither variant
+(or a SQLite file that is not one of ours) are treated as a bare blob, letting
+AES-GCM be the final arbiter. Then decrypt exactly as §6/§5. The gzip guard (§4)
+uses the binary size cap (below), which also bounds decompression on this path.
 
 Canonical filenames used by the reference implementations: branded
 `stegoshard-vault.ssbn` / `stegoshard-key.ssbn`; disguised `cache.db` /
@@ -406,8 +434,12 @@ rejection-sampled distinct carrier positions (RGB LSBs for a PNG cover; eligible
 AC coefficients with `|coef| ≥ 2` for a baseline JPEG, keeping size invariance),
 MSB-first bit order — **except** there is no whitening pad (the sealed slot is
 already uniform) and the length is `SLOT_BYTES·8` bits, not the fixed key-block
-length. A cover must have `≥ SLOT_BYTES·8·4` eligible carriers (a ×4 margin keeps
-embedding sparse) or it is rejected.
+length. Unlike §5.3/§5.4 the keystream is **not** bound to a per-cover fingerprint:
+positions may repeat across same-size covers, but this leaks nothing here because
+each slot is an independent AES-GCM message (fresh random nonce, §9.2) with no
+whitening — there is no two-time-pad to exploit. A cover must have
+`≥ SLOT_BYTES·8·4` eligible carriers (a ×4 margin keeps embedding sparse) or it is
+rejected.
 
 ### 9.4 Encode
 
@@ -453,12 +485,12 @@ them — amplified vs. single-image stego (see `docs/CRYPTO-REVIEW.md`).
 | `FORMAT_VERSION` | 1                                                             |
 | Header magic     | `"SSHD"`                                                      |
 | Key block magic  | `"SSKY"`                                                      |
-| Binary magic     | `"SSBN"` (branded); 1024-byte SQLite database (disguised) (§8) |
+| Binary magic     | `"SSBN"` (branded); SQLite DB, blob in `cache` table (disguised) (§8) |
 | Header length    | 33 bytes                                                      |
 | Codec IDs        | `0` QR-grid; `1` gallery (§9)                                 |
 | Cipher           | AES-256-GCM, 12-byte IV, 16-byte tag                          |
 | KDF              | Argon2id, 32-byte output, salt 16 bytes                       |
-| KDF defaults     | iterations 3, memory 64 MiB, parallelism 1                    |
+| KDF defaults     | iterations 4, memory 256 MiB, parallelism 1                   |
 | GF polynomial    | `0x11D`, generator `0x02`                                     |
 | Parity           | `m = max(ceil(k·0.3), 2)`                                     |
 | Data per shard   | `capacity(profile) − 33` (Disk 2767, Cloud 1567, Paper 767)   |

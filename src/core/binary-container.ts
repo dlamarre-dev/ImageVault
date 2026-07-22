@@ -6,13 +6,12 @@
  *   - 'branded'   → [ MAGIC "SSBN" 4 ][ VERSION 1 ][ payload ]. A self-labelling
  *                   blob; easy for the owner to recognize, makes no attempt to
  *                   hide (extension .ssbn).
- *   - 'disguised' → [ complete SQLite DB ][ payload ]. Prepends a real, small
- *                   SQLite database (a `notes` table with innocuous dummy rows);
- *                   the payload is appended after the DB's last page. SQLite reads
- *                   only `page_count` pages and ignores trailing bytes, so the file
- *                   opens cleanly in `sqlite3` and shows the dummy table (.db).
- *                   Deniability against a casual *open*, still not a forensic
- *                   adversary (see docs/CRYPTO-REVIEW.md §6b).
+ *   - 'disguised' → a **complete, valid SQLite database** whose largest BLOB row
+ *                   *is* the payload (stored across a proper overflow-page chain).
+ *                   There are no trailing bytes past the DB's logical end, so
+ *                   `page_count × page_size == file size`, `PRAGMA integrity_check`
+ *                   is `ok`, and `sqlite3 cache.db "SELECT * FROM cache"` works.
+ *                   See src/core/sqlite-container.ts and docs/CRYPTO-REVIEW.md §6b.
  *
  * The payload is already an authenticated ciphertext (vault blob) or a wrapped
  * key block, so the wrapper adds no secrecy — only packaging. Unwrapping a file
@@ -20,28 +19,14 @@
  * bare payload (e.g. a raw .key), letting AES-GCM be the final arbiter.
  */
 
-import { concatBytes, fromBase64 } from './bytes';
+import { concatBytes } from './bytes';
+import { SQLITE_MAGIC, packSqlite, unpackSqlite } from './sqlite-container';
 
 export type BinaryVariant = 'branded' | 'disguised';
 
 /** "SSBN" — StegoShard BiNary container. */
 export const BINARY_MAGIC = Uint8Array.from([0x53, 0x53, 0x42, 0x4e]);
 export const BINARY_VERSION = 1;
-
-/**
- * A complete, valid SQLite 3 database (1024 bytes, two 512-byte pages) with a
- * `notes` table holding a few innocuous dummy rows. Used as the 'disguised'
- * prefix: the vault blob is appended after page 2. The header's page-count
- * (offset 28) equals the real page count and its change-counter (24) equals the
- * version-valid-for (96), so SQLite trusts the page count and ignores the
- * appended bytes — `sqlite3 cache.db "SELECT * FROM notes"` opens and lists the
- * dummy rows. A frozen constant (generated once with sqlite3; not regenerated).
- */
-const SQLITE_TEMPLATE = fromBase64(
-  'U1FMaXRlIGZvcm1hdCAzAAIAAQEAQCAgAAAAAwAAAAIAAAAAAAAAAAAAAAIAAAAEAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAC6GKQ0AAAABAaUAAaUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFkBBxcXFwGBEXRhYmxlbm90ZXNub3RlcwJDUkVBVEUgVEFCTEUgbm90ZXMgKGlkIElOVEVHRVIgUFJJTUFSWSBLRVksIHRpdGxlIFRFWFQsIGJvZHkgVEVYVCkNAAAAAwGAAAHYAaoBgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAwQAF0tJZGVhc3dlZWtlbmQgaGlrZTsgcmVwYWludCB0aGUgZmVuY2UsAgQAFVVUb2RvY2FsbCB0aGUgcGx1bWJlcjsgcmVuZXcgbGlicmFyeSBjYXJkJgEEAB8/R3JvY2VyaWVzbWlsaywgZWdncywgYnJlYWQsIGNvZmZlZQ==',
-);
-/** Distinguishing head (the DB header) — a stable signature within a 128-byte peek. */
-const SQLITE_DETECT = SQLITE_TEMPLATE.slice(0, 100);
 
 const BRANDED_PREFIX_LEN = BINARY_MAGIC.length + 1; // magic + version
 
@@ -51,12 +36,22 @@ function startsWith(bytes: Uint8Array, prefix: Uint8Array): boolean {
   return true;
 }
 
+/**
+ * Cheap detection from a file head (a peek of ≥16 bytes is enough): does this
+ * look like one of our binary containers? Recognises the branded magic and the
+ * SQLite header of the disguised variant. Extraction still needs the whole file
+ * (`unwrapBinary`), because the disguised blob is reassembled from the database.
+ */
+export function looksLikeBinaryContainer(head: Uint8Array): boolean {
+  return startsWith(head, BINARY_MAGIC) || startsWith(head, SQLITE_MAGIC);
+}
+
 /** Wrap an already-encrypted payload in the chosen container variant. */
 export function wrapBinary(payload: Uint8Array, variant: BinaryVariant): Uint8Array {
   if (variant === 'branded') {
     return concatBytes(BINARY_MAGIC, Uint8Array.of(BINARY_VERSION), payload);
   }
-  return concatBytes(SQLITE_TEMPLATE, payload);
+  return packSqlite(payload);
 }
 
 /**
@@ -73,9 +68,12 @@ export function unwrapBinary(
       throw new Error(`binary container: unsupported version ${version}`);
     return { payload: bytes.slice(BRANDED_PREFIX_LEN), variant: 'branded' };
   }
-  // Detect on the DB header (fits a 128-byte peek); strip the whole template.
-  if (startsWith(bytes, SQLITE_DETECT)) {
-    return { payload: bytes.slice(SQLITE_TEMPLATE.length), variant: 'disguised' };
+  // Disguised: recognised by the SQLite header (fits a 128-byte peek), then the
+  // blob is reassembled from the database's b-tree. A foreign/real SQLite file
+  // that isn't one of ours yields null from unpackSqlite → treated as non-container.
+  if (startsWith(bytes, SQLITE_MAGIC)) {
+    const payload = unpackSqlite(bytes);
+    if (payload) return { payload, variant: 'disguised' };
   }
   return null;
 }

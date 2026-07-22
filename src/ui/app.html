@@ -120,6 +120,7 @@
                 ><input type="radio" name="dest" value="sqlite" /><span
                   data-i18n="destSqlite"
                 ></span
+                ><span class="mode-badge mode-badge--deniable" data-i18n="badgeDeniable"></span
               ></label>
               <label id="dest-cloud-label" hidden
                 ><input type="radio" name="dest" value="cloud" /><span data-i18n="destCloud"></span
@@ -128,8 +129,10 @@
                 ><input type="radio" name="dest" value="gallery" /><span
                   data-i18n="destGallery"
                 ></span
+                ><span class="mode-badge mode-badge--deniable" data-i18n="badgeDeniable"></span
               ></label>
             </fieldset>
+            <p class="muted mode-legend" data-i18n="modeLegend"></p>
             <p id="estimate-line" class="muted estimate-line">
               <span data-i18n="estimateFiles"></span> <span id="estimate" class="badge">—</span>
             </p>
@@ -380,6 +383,10 @@
           <div id="create-fields" hidden>
             <label data-i18n="labelNewPassword" for="new-pw"></label>
             <input id="new-pw" type="password" autocomplete="new-password" />
+            <div class="pw-row">
+              <p id="new-pw-strength" class="muted pw-meter-label" aria-live="polite"></p>
+              <button id="new-pw-gen" type="button" class="btn-link" data-i18n="pwGenerate"></button>
+            </div>
             <label data-i18n="labelConfirmPassword" for="confirm-pw"></label>
             <input id="confirm-pw" type="password" autocomplete="new-password" />
             <p class="muted warn" data-i18n="passwordHint"></p>

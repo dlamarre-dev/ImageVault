@@ -845,5 +845,35 @@
   "footerSource": {
     "message": "Sorgente (MIT)",
     "description": "Web footer: source-code link."
+  },
+  "pwVeryWeak": {
+    "message": "Molto debole"
+  },
+  "pwWeak": {
+    "message": "Debole"
+  },
+  "pwFair": {
+    "message": "Discreta"
+  },
+  "pwGood": {
+    "message": "Buona"
+  },
+  "pwStrong": {
+    "message": "Forte"
+  },
+  "pwBits": {
+    "message": "bit"
+  },
+  "pwGenerate": {
+    "message": "Genera una passphrase forte"
+  },
+  "badgeDeniable": {
+    "message": "Negabile"
+  },
+  "badgeOvert": {
+    "message": "Palese"
+  },
+  "modeLegend": {
+    "message": "Le modalità negabili si mimetizzano come file ordinari; le altre sono apertamente StegoShard."
   }
 }

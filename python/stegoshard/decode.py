@@ -19,7 +19,7 @@ import struct
 import sys
 import zipfile
 
-from .binary_container import unwrap_binary
+from .binary_container import looks_like_binary_container, unwrap_binary
 from .crypto import WrongPasswordError
 from .pipeline import MissingKeyError, decode_vault, decode_vault_binary
 from .qr import decode_image
@@ -42,12 +42,8 @@ def _find_binary_vault(paths: list[str]) -> bytes | None:
         if not os.path.isfile(path):
             continue
         with open(path, "rb") as fh:
-            head = fh.read(128)  # covers the disguised variant's 100-byte detection head
-        try:
-            is_container = unwrap_binary(head) is not None
-        except ValueError:
-            is_container = True  # our magic, unsupported version — still ours
-        if is_container:
+            head = fh.read(128)  # a head peek is enough to recognise the container
+        if looks_like_binary_container(head):
             with open(path, "rb") as fh:
                 return fh.read()
     return None

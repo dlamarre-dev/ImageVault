@@ -845,5 +845,35 @@
   "footerSource": {
     "message": "ソース (MIT)",
     "description": "Web footer: source-code link."
+  },
+  "pwVeryWeak": {
+    "message": "非常に弱い"
+  },
+  "pwWeak": {
+    "message": "弱い"
+  },
+  "pwFair": {
+    "message": "普通"
+  },
+  "pwGood": {
+    "message": "良い"
+  },
+  "pwStrong": {
+    "message": "強い"
+  },
+  "pwBits": {
+    "message": "ビット"
+  },
+  "pwGenerate": {
+    "message": "強力なパスフレーズを生成"
+  },
+  "badgeDeniable": {
+    "message": "秘匿"
+  },
+  "badgeOvert": {
+    "message": "明示"
+  },
+  "modeLegend": {
+    "message": "秘匿モードは通常のファイルに紛れます。それ以外は明示的にStegoShardです。"
   }
 }

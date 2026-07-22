@@ -17,7 +17,7 @@ const SLOW = { timeout: 60_000 };
 const PW = 'paper password';
 
 function tmp(): string {
-  return mkdtempSync(join(tmpdir(), 'iv-paper-'));
+  return mkdtempSync(join(tmpdir(), 'ss-paper-'));
 }
 
 function pattern(len: number, seed = 7): Uint8Array {

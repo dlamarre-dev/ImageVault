@@ -1,0 +1,38 @@
+# CryptoScan configuration — QRAMM post-quantum crypto scanner (https://qramm.org)
+#
+# StegoShard's crypto is symmetric-only (Argon2id KDF + AES-256-GCM + HKDF-SHA256,
+# all via WebCrypto / hash-wasm). There is NO asymmetric cryptography, so nothing
+# here is broken by Shor's algorithm; AES-256 / SHA-256 keep ~128-bit strength under
+# Grover, which is adequate (see docs/CRYPTO-REVIEW.md §9).
+#
+# The suppressions below are keyword false positives, each verified by hand. They are
+# scoped to specific pattern families so a genuinely new weak algorithm (MD5, RC4, RSA,
+# DES, …) is still reported and still fails CI via `failOn: high`.
+#
+#   Reproduce:  cryptoscan scan .           (gate; auto-detects this file)
+#               cryptodeps analyze .        (dependency view; capability-based)
+
+ignore:
+  patterns:
+    # "ecc" / "ECC" in this repo is the QR-code Error Correction Code *level*
+    # (ecc: 'L'|'M'|'Q'|'H' in src/core/codec/qr-grid.ts, "high-ECC" in CLI help),
+    # never elliptic-curve cryptography — which the codebase does not use.
+    - ECC-001
+    # PBKDF-001 matches the string "iterations: N". Here N is the Argon2id *time cost*
+    # (t=3 in production, plus deliberate 0/1/16/17 boundary values in the hardening
+    # tests), not a PBKDF2 iteration count. StegoShard uses Argon2id, not PBKDF2.
+    - PBKDF-001
+  categories:
+    # "Certificate" findings match the substrings "expires" / "ip:" in source; there
+    # are no X.509 certificates, TLS configs, or PKI in this project.
+    - Certificate
+  files:
+    - "node_modules/*"
+    - "dist/*"
+    - "dist-cli/*"
+    - "coverage/*"
+    - ".git/*"
+
+# Fail CI on any HIGH or CRITICAL finding that survives the suppressions above —
+# i.e. a newly introduced quantum-vulnerable or classically-broken algorithm.
+failOn: high

@@ -8,8 +8,8 @@ web-dist/
 dist-cli/
 dist-release/
 # deno compile output
-/imagevault
-/imagevault-*
+/stegoshard
+/stegoshard-*
 build/
 coverage/
 packages/

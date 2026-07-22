@@ -18,8 +18,10 @@ import {
   setupKey,
 } from './keystore';
 import { downloadBlob } from './image-io';
+import { generatePassphrase, passwordStrength } from './password';
 
 const MIN_PASSWORD = 8;
+const STRENGTH_KEYS = ['pwVeryWeak', 'pwWeak', 'pwFair', 'pwGood', 'pwStrong'];
 
 export function wireKeyManager(onChange: () => void = () => {}): void {
   const keyBodyNew = el('key-body-new');
@@ -47,6 +49,23 @@ export function wireKeyManager(onChange: () => void = () => {}): void {
   const confirmPw = el<HTMLInputElement>('confirm-pw');
   const createBtn = el<HTMLButtonElement>('create-btn');
   const createStatus = el('create-status');
+
+  // Live strength estimate + one-click strong passphrase (A2, UX only).
+  const newPwStrength = el('new-pw-strength');
+  const refreshStrength = (): void => {
+    const s = passwordStrength(newPw.value);
+    newPwStrength.textContent = newPw.value
+      ? `${msg(STRENGTH_KEYS[s.score]!)} · ~${s.bits} ${msg('pwBits')}`
+      : '';
+  };
+  newPw.addEventListener('input', refreshStrength);
+  el<HTMLButtonElement>('new-pw-gen').addEventListener('click', () => {
+    const p = generatePassphrase();
+    newPw.value = p;
+    newPw.type = 'text'; // reveal so the user can record it
+    confirmPw.value = p;
+    refreshStrength();
+  });
 
   createBtn.addEventListener('click', async () => {
     const err = validateNewPassword(newPw.value, confirmPw.value);

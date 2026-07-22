@@ -53,13 +53,51 @@ jobs:
         run: |
           curl -fsSL https://deno.land/install.sh | sh -s v2.1.4
           export PATH="$HOME/.deno/bin:$PATH"
-          echo "deno smoke: save + restore a vault with the bundled CLI" > /tmp/iv-secret.txt
+          echo "deno smoke: save + restore a vault with the bundled CLI" > /tmp/ss-secret.txt
           STEGOSHARD_PASSWORD=ci-pass deno run --allow-read --allow-write --allow-env \
-            dist-cli/stegoshard.js save /tmp/iv-secret.txt --out /tmp/iv-out
+            dist-cli/stegoshard.js save /tmp/ss-secret.txt --out /tmp/ss-out
           STEGOSHARD_PASSWORD=ci-pass deno run --allow-read --allow-write --allow-env \
-            dist-cli/stegoshard.js restore /tmp/iv-out --out /tmp/iv-restored
-          diff /tmp/iv-secret.txt /tmp/iv-restored/iv-secret.txt
+            dist-cli/stegoshard.js restore /tmp/ss-out --out /tmp/ss-restored
+          diff /tmp/ss-secret.txt /tmp/ss-restored/ss-secret.txt
           echo "Deno round-trip OK"
+
+  crypto-scan:
+    name: Post-quantum crypto scan (QRAMM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install QRAMM scanners
+        run: |
+          go install github.com/csnp/cryptoscan/cmd/cryptoscan@v1.3.0
+          go install github.com/csnp/qramm-cryptodeps/cmd/cryptodeps@v1.2.2
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      # Source scan. Auto-detects .cryptoscan.yaml (failOn: high + documented false-positive
+      # suppressions), so this fails only if a *new* HIGH/CRITICAL algorithm is introduced.
+      - name: cryptoscan — gate on new weak/quantum-vulnerable crypto
+        run: cryptoscan scan .
+
+      # Cryptographic Bill of Materials, uploaded as a build artifact (not committed —
+      # it tracks dependency capabilities and would drift).
+      - name: cryptoscan — generate CBOM
+        run: cryptoscan scan . --format cbom --output crypto-bom.json
+
+      # Dependency view. Capability-based for npm/pypi (reachability is Go-only), so it
+      # over-reports what libraries *can* do (hash-wasm→MD5/SHA-1, cryptography→RSA) vs
+      # what StegoShard actually uses (Argon2id, AES-256-GCM). Informational only.
+      - name: cryptodeps — dependency report (informational)
+        run: cryptodeps analyze . --fail-on none
+
+      - name: Upload CBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-bom
+          path: crypto-bom.json
 
   conformance:
     name: Python decoder conformance

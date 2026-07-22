@@ -845,5 +845,35 @@
   "footerSource": {
     "message": "原始碼 (MIT)",
     "description": "Web footer: source-code link."
+  },
+  "pwVeryWeak": {
+    "message": "非常弱"
+  },
+  "pwWeak": {
+    "message": "弱"
+  },
+  "pwFair": {
+    "message": "普通"
+  },
+  "pwGood": {
+    "message": "良好"
+  },
+  "pwStrong": {
+    "message": "強"
+  },
+  "pwBits": {
+    "message": "位元"
+  },
+  "pwGenerate": {
+    "message": "產生強式密碼短語"
+  },
+  "badgeDeniable": {
+    "message": "可否認"
+  },
+  "badgeOvert": {
+    "message": "公開"
+  },
+  "modeLegend": {
+    "message": "可否認模式偽裝成一般檔案；其餘則明確為 StegoShard。"
   }
 }

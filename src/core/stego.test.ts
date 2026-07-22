@@ -147,3 +147,30 @@ describe('stego capacity', () => {
     ).rejects.toBeInstanceOf(RangeError);
   });
 });
+
+describe('stego per-cover keystream (SPEC §5.3)', () => {
+  it('binds the keystream to the cover: same password + same size → different carrier layout', async () => {
+    const password = 'reused-across-two-vaults';
+    const kb = await makeKeyBlockBytes(password);
+    const a = makeCover(W, H, 1);
+    const b = makeCover(W, H, 2); // differs from `a` in high (non-LSB) bits
+    const a0 = a.slice();
+    const b0 = b.slice();
+    await embedKeyBlockStego(a, W, H, kb, password, FAST);
+    await embedKeyBlockStego(b, W, H, kb, password, FAST);
+
+    // The set of byte indices whose LSB the embedder touched is derived from the
+    // per-cover keystream. Without the per-cover nonce these would be identical
+    // (same password, same size) — a two-time-pad / correlation leak. They must differ.
+    const changedIdx = (orig: Uint8Array, now: Uint8Array): string => {
+      const idx: number[] = [];
+      for (let i = 0; i < orig.length; i++) if (orig[i] !== now[i]) idx.push(i);
+      return idx.join(',');
+    };
+    expect(changedIdx(a0, a)).not.toBe(changedIdx(b0, b));
+
+    // Each cover still round-trips against itself (fingerprint is embed-invariant).
+    expect(await extractKeyBlockStego(a, W, H, password, FAST)).toEqual(kb);
+    expect(await extractKeyBlockStego(b, W, H, password, FAST)).toEqual(kb);
+  });
+});
