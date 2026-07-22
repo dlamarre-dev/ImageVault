@@ -941,5 +941,26 @@
   "footerSource": {
     "message": "Code source (MIT)",
     "description": "Web footer: source-code link."
+  },
+  "pwVeryWeak": {
+    "message": "Très faible"
+  },
+  "pwWeak": {
+    "message": "Faible"
+  },
+  "pwFair": {
+    "message": "Moyen"
+  },
+  "pwGood": {
+    "message": "Bon"
+  },
+  "pwStrong": {
+    "message": "Fort"
+  },
+  "pwBits": {
+    "message": "bits"
+  },
+  "pwGenerate": {
+    "message": "Générer une phrase de passe forte"
   }
 }

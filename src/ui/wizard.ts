@@ -13,6 +13,7 @@ import { runSave, type SaveDestination, type SaveRequest } from './save-controll
 import { runRestore, type RestoreMode } from './restore-controller';
 import type { Msg } from './save-controller';
 import { type DestEstimate, type Estimates, computeEstimates, formatSize } from './estimate';
+import { generatePassphrase, passwordStrength } from './password';
 
 export interface WizardCamera {
   open: () => void;
@@ -281,15 +282,48 @@ export function createWizard(root: HTMLElement, env: WizardEnv): Wizard {
     return zone;
   }
 
-  function passwordField(value: string, onInput: (v: string) => void): HTMLElement {
+  const STRENGTH_KEYS = ['pwVeryWeak', 'pwWeak', 'pwFair', 'pwGood', 'pwStrong'];
+
+  function passwordField(
+    value: string,
+    onInput: (v: string) => void,
+    opts: { withMeter?: boolean } = {},
+  ): HTMLElement {
     const input = h('input', {
       type: 'password',
       autocomplete: 'new-password',
       placeholder: msg('labelPassword'),
       value,
     });
-    input.addEventListener('input', () => onInput(input.value));
-    return input;
+    if (!opts.withMeter) {
+      input.addEventListener('input', () => onInput(input.value));
+      return input;
+    }
+
+    // Save flow: show a strength estimate and offer a generated passphrase.
+    const bar = h('div', { class: 'pw-meter-bar' });
+    const meter = h('div', { class: 'pw-meter' }, bar);
+    const label = h('p', { class: 'muted pw-meter-label' });
+    const refresh = (): void => {
+      const s = passwordStrength(input.value);
+      bar.className = `pw-meter-bar pw-score-${s.score}`;
+      bar.style.width = `${input.value ? Math.max(8, s.score * 25) : 0}%`;
+      label.textContent = input.value ? `${msg(STRENGTH_KEYS[s.score]!)} · ~${s.bits} ${msg('pwBits')}` : '';
+    };
+    input.addEventListener('input', () => {
+      onInput(input.value);
+      refresh();
+    });
+    const gen = h('button', { type: 'button', class: 'wiz-link' }, msg('pwGenerate'));
+    gen.addEventListener('click', () => {
+      const p = generatePassphrase();
+      input.value = p;
+      input.type = 'text'; // reveal so the user can record it
+      onInput(p);
+      refresh();
+    });
+    refresh();
+    return h('div', { class: 'pw-field' }, input, meter, label, gen);
   }
 
   // --- render one step -------------------------------------------------------
@@ -438,9 +472,13 @@ export function createWizard(root: HTMLElement, env: WizardEnv): Wizard {
             'div',
             {},
             h('p', { class: 'muted', text: msg('wizPasswordDesc') }),
-            passwordField(state.savePassword, (v) => {
-              state.savePassword = v;
-            }),
+            passwordField(
+              state.savePassword,
+              (v) => {
+                state.savePassword = v;
+              },
+              { withMeter: true },
+            ),
           ),
         };
       case 'restore-mode':

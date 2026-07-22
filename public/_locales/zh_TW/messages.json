@@ -845,5 +845,26 @@
   "footerSource": {
     "message": "原始碼 (MIT)",
     "description": "Web footer: source-code link."
+  },
+  "pwVeryWeak": {
+    "message": "非常弱"
+  },
+  "pwWeak": {
+    "message": "弱"
+  },
+  "pwFair": {
+    "message": "普通"
+  },
+  "pwGood": {
+    "message": "良好"
+  },
+  "pwStrong": {
+    "message": "強"
+  },
+  "pwBits": {
+    "message": "位元"
+  },
+  "pwGenerate": {
+    "message": "產生強式密碼短語"
   }
 }
