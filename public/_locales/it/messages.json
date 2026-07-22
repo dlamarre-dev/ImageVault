@@ -866,5 +866,14 @@
   },
   "pwGenerate": {
     "message": "Genera una passphrase forte"
+  },
+  "badgeDeniable": {
+    "message": "Negabile"
+  },
+  "badgeOvert": {
+    "message": "Palese"
+  },
+  "modeLegend": {
+    "message": "Le modalità negabili si mimetizzano come file ordinari; le altre sono apertamente StegoShard."
   }
 }

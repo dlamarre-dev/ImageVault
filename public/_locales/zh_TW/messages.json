@@ -866,5 +866,14 @@
   },
   "pwGenerate": {
     "message": "產生強式密碼短語"
+  },
+  "badgeDeniable": {
+    "message": "可否認"
+  },
+  "badgeOvert": {
+    "message": "公開"
+  },
+  "modeLegend": {
+    "message": "可否認模式偽裝成一般檔案；其餘則明確為 StegoShard。"
   }
 }

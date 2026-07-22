@@ -906,3 +906,30 @@ details.advanced[open] > summary::before {
   font: inherit;
   text-decoration: underline;
 }
+
+/* Deniable / overt mode badges (UI clarity for save destinations) */
+.mode-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.mode-badge--deniable {
+  background: #1e8449;
+  color: #fff;
+}
+.mode-badge--overt {
+  background: var(--border);
+  color: inherit;
+  opacity: 0.85;
+}
+.mode-legend {
+  font-size: 0.85em;
+  margin-top: 4px;
+}

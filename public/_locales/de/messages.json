@@ -866,5 +866,14 @@
   },
   "pwGenerate": {
     "message": "Starke Passphrase erzeugen"
+  },
+  "badgeDeniable": {
+    "message": "Abstreitbar"
+  },
+  "badgeOvert": {
+    "message": "Offen"
+  },
+  "modeLegend": {
+    "message": "Abstreitbare Modi tarnen sich als gewöhnliche Dateien; die übrigen sind offen StegoShard."
   }
 }

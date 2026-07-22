@@ -114,6 +114,13 @@ function h<K extends keyof HTMLElementTagNameMap>(
 
 const KEY_MODES: KeyMode[] = ['embedded', 'keyfile', 'stego'];
 
+/**
+ * Destinations whose goal is deniability — the artifact blends in as ordinary
+ * files (photos, or a real SQLite database). The others (disk/paper/cloud QR,
+ * branded binary) are overt: openly StegoShard by design.
+ */
+const DENIABLE_DESTS = new Set<SaveDestination>(['gallery', 'sqlite']);
+
 export interface Wizard {
   /** Rebuild from the first step (used when re-entering the guided workflow). */
   reset(): void;
@@ -215,6 +222,7 @@ export function createWizard(root: HTMLElement, env: WizardEnv): Wizard {
       desc: string;
       disabled?: boolean | undefined;
       note?: string | undefined;
+      badge?: { text: string; deniable: boolean } | undefined;
     }[],
     current: string,
     onPick: (value: string) => void,
@@ -234,7 +242,17 @@ export function createWizard(root: HTMLElement, env: WizardEnv): Wizard {
           'label',
           { class: opt.disabled ? 'wiz-option wiz-option--disabled' : 'wiz-option' },
           input,
-          h('span', { class: 'wiz-option-label', text: opt.label }),
+          h(
+            'span',
+            { class: 'wiz-option-label' },
+            opt.label,
+            opt.badge
+              ? h('span', {
+                  class: `mode-badge ${opt.badge.deniable ? 'mode-badge--deniable' : 'mode-badge--overt'}`,
+                  text: opt.badge.text,
+                })
+              : null,
+          ),
           h('span', { class: 'wiz-option-desc muted', text: opt.desc }),
           opt.note ? h('span', { class: 'wiz-option-note', text: opt.note }) : null,
         ),
@@ -398,12 +416,17 @@ export function createWizard(root: HTMLElement, env: WizardEnv): Wizard {
             'wiz-dest',
             env.saveDestinations.map((d) => {
               const e = est?.[d];
+              const deniable = DENIABLE_DESTS.has(d);
               return {
                 value: d,
                 label: labels[d][0],
                 desc: labels[d][1],
                 disabled: e ? !e.available : false,
                 note: e ? (e.available ? countNote(d, e) : e.reason) : '…',
+                badge: {
+                  text: msg(deniable ? 'badgeDeniable' : 'badgeOvert'),
+                  deniable,
+                },
               };
             }),
             state.dest,

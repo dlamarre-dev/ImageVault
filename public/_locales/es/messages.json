@@ -866,5 +866,14 @@
   },
   "pwGenerate": {
     "message": "Generar una frase de contraseña segura"
+  },
+  "badgeDeniable": {
+    "message": "Negable"
+  },
+  "badgeOvert": {
+    "message": "Visible"
+  },
+  "modeLegend": {
+    "message": "Los modos negables se camuflan como archivos normales; los demás son abiertamente StegoShard."
   }
 }

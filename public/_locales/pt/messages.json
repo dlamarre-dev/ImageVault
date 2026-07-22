@@ -866,5 +866,14 @@
   },
   "pwGenerate": {
     "message": "Gerar uma frase-senha forte"
+  },
+  "badgeDeniable": {
+    "message": "Negável"
+  },
+  "badgeOvert": {
+    "message": "Visível"
+  },
+  "modeLegend": {
+    "message": "Os modos negáveis disfarçam-se como ficheiros comuns; os restantes são abertamente StegoShard."
   }
 }

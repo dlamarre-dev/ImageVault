@@ -962,5 +962,14 @@
   },
   "pwGenerate": {
     "message": "Générer une phrase de passe forte"
+  },
+  "badgeDeniable": {
+    "message": "Déniable"
+  },
+  "badgeOvert": {
+    "message": "Visible"
+  },
+  "modeLegend": {
+    "message": "Les modes déniables se fondent dans des fichiers ordinaires ; les autres sont ouvertement StegoShard."
   }
 }
