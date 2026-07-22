@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="ImageVault">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="StegoShard">
   <defs>
-    <linearGradient id="iv-g" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="ss-g" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#3b5bdb" />
       <stop offset="1" stop-color="#2f49b8" />
     </linearGradient>
   </defs>
-  <rect width="128" height="128" rx="28" fill="url(#iv-g)" />
+  <rect width="128" height="128" rx="28" fill="url(#ss-g)" />
   <g fill="#ffffff">
     <circle cx="64" cy="54" r="19" />
     <path d="M53 54 L75 54 L86 92 L42 92 Z" />

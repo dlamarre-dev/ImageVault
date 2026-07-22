@@ -16,7 +16,7 @@ import { runEstimate, runRestore, runSave } from './commands';
 const SLOW = { timeout: 60_000 };
 
 function tmp(): string {
-  return mkdtempSync(join(tmpdir(), 'iv-cli-'));
+  return mkdtempSync(join(tmpdir(), 'ss-cli-'));
 }
 
 function writeSecret(dir: string, bytes: Uint8Array): string {

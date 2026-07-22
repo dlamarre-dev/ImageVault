@@ -15,7 +15,7 @@ const SLOW = { timeout: 60_000 };
 const PW = 'correct horse battery staple';
 
 function tmp(): string {
-  return mkdtempSync(join(tmpdir(), 'iv-gallery-'));
+  return mkdtempSync(join(tmpdir(), 'ss-gallery-'));
 }
 
 /** A PNG cover with ample RGB LSB capacity for one gallery slot. */
