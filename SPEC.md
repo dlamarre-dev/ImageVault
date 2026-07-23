@@ -354,19 +354,22 @@ disguised  a complete SQLite 3 database whose `cache` table holds the vault blob
 - **Branded** (`.ssbn`) is self-labelling: easy for the owner to recognize; it
   makes no attempt to hide.
 - **Disguised** (`.db`) is a **complete, structurally valid SQLite 3 database**
-  (4096-byte pages) with a `cache(k TEXT, v BLOB)` table. The vault blob is the
-  BLOB value `v` of the row keyed `k = 'page_cache'`, stored across a proper
-  **overflow-page chain**; a couple of small decoy rows precede it. The header's
-  page-count (offset 28) equals the real page count and the change counter (24)
-  equals version-valid-for (92). Crucially there are **no trailing bytes past the
-  database's logical end**: `file size == page_count × page_size`. So
-  `sqlite3 cache.db "SELECT * FROM cache"` opens cleanly, `PRAGMA integrity_check`
-  returns `ok`, and structural triage (size vs. page count, header scan) finds
-  nothing amiss. The remaining tell is that one BLOB value is high-entropy — a
-  content-level observation, not a structural one (see `docs/CRYPTO-REVIEW.md`
-  §6b). The database is generated deterministically and is byte-identical across
-  implementations; the reader reassembles the `page_cache` row's BLOB from the
-  b-tree and overflow chain.
+  (4096-byte pages) with a `cache(k TEXT, v BLOB)` table. The vault blob is split
+  into ~64 KiB chunks stored as rows keyed `page_cache_NNNN` (chunk order),
+  reassembled by concatenation; a couple of small decoy rows precede them. Rows
+  live under an **interior b-tree root** (page 2), one row per leaf page, each
+  spilling into its own **overflow-page chain** (capped at 256 vault rows so the
+  root fits one page). The header's page-count (offset 28) equals the real page
+  count and the change counter (24) equals version-valid-for (92). Crucially there
+  are **no trailing bytes past the database's logical end**: `file size ==
+  page_count × page_size`. So `sqlite3 cache.db "SELECT * FROM cache"` opens
+  cleanly, `PRAGMA integrity_check` returns `ok`, and structural triage (size vs.
+  page count, header scan) finds nothing amiss. The remaining tell is that the row
+  values are high-entropy — a content-level observation, not a structural one;
+  spreading across ordinary-sized rows softens but does not remove it (see
+  `docs/CRYPTO-REVIEW.md` §6b). The database is generated deterministically and is
+  byte-identical across implementations; the reader walks the b-tree, reassembles
+  each `page_cache_*` row, and concatenates them in order.
 
 The **external key** (keyfile mode, `KB_LEN = 0`) MAY be delivered the same way:
 the 92-byte key block (§5.1) wrapped in a branded or disguised container. Stego
@@ -374,7 +377,7 @@ key delivery (§5.3/§5.4) is unchanged — the key stays a cover image.
 
 **Restore.** Detect the variant by its leading signature (the branded magic, or
 the SQLite header). Branded strips its 5-byte prefix; disguised parses the
-database and reassembles the `page_cache` BLOB. Bytes matching neither variant
+database and concatenates the `page_cache_*` rows. Bytes matching neither variant
 (or a SQLite file that is not one of ours) are treated as a bare blob, letting
 AES-GCM be the final arbiter. Then decrypt exactly as §6/§5. The gzip guard (§4)
 uses the binary size cap (below), which also bounds decompression on this path.

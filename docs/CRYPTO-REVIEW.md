@@ -249,23 +249,27 @@ is already an authenticated AES-256-GCM ciphertext, so neither variant changes
 the confidentiality boundary — the container is packaging. The **disguised**
 variant (`src/core/sqlite-container.ts`, mirrored in
 `python/stegoshard/sqlite_container.py`) is a **complete SQLite 3 database** with
-4096-byte pages and a `cache(k TEXT, v BLOB)` table. The vault blob is the BLOB of
-the row keyed `page_cache`, stored across a **proper overflow-page chain**, with a
-couple of small decoy rows. The header's page-count (28) matches the real page
-count and its change-counter (24) equals version-valid-for (92), and — the key
-improvement over the earlier append-after-the-DB layout — **`file size ==
-page_count × page_size`, with no bytes past the database's logical end**. So
-`sqlite3 cache.db "SELECT * FROM cache"` opens and reads the rows, `PRAGMA
-integrity_check` returns `ok`, and the classic forensic tell (a file longer than
-its page count, or a high-entropy tail no page references) is **gone**.
+4096-byte pages and a `cache(k TEXT, v BLOB)` table. The vault blob is split into
+~64 KiB chunks stored as rows keyed `page_cache_NNNN` (reassembled by
+concatenation), plus a couple of small decoy rows, under an **interior b-tree
+root** (one row per leaf page, each with its own **overflow-page chain**). The
+header's page-count (28) matches the real page count and its change-counter (24)
+equals version-valid-for (92), and — the key improvement over the earlier
+append-after-the-DB layout — **`file size == page_count × page_size`, with no
+bytes past the database's logical end**. So `sqlite3 cache.db "SELECT * FROM
+cache"` opens and reads the rows, `PRAGMA integrity_check` returns `ok`, and the
+classic forensic tell (a file longer than its page count, or a high-entropy tail
+no page references) is **gone**.
 
-**Honest limit (stated in the module and docs):** the vault row is one large
-high-entropy BLOB. An examiner who inspects *values* (not just structure) can
-observe that a `cache` holding ~megabytes of incompressible random bytes is
-unusual. This is a **content-level** observation, not a structural one — the file
-is a bona-fide database. So the bar is raised from "casual open" to "content
-analysis of the row values"; it is still not a claim of indistinguishability from
-a genuine application database to a determined forensic adversary. The **branded**
+**Honest limit (stated in the module and docs):** the row values are still
+high-entropy ciphertext. Splitting the vault across several ordinary-sized rows
+softens the "one giant opaque BLOB" tell, but an examiner who inspects *values*
+(not just structure) can still observe that a `cache` full of incompressible
+random bytes is unusual. This is a **content-level** observation, not a structural
+one — the file is a bona-fide database. So the bar is raised from "casual open" to
+"content analysis of the row values"; it is still not a claim of
+indistinguishability from a genuine application database to a determined forensic
+adversary. The **branded**
 variant makes no attempt to hide (it is self-labelling by design). Both are
 defense-in-depth on top of the password-wrapped key block, exactly like the stego
 carriers (§6a).

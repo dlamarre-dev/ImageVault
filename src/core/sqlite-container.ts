@@ -1,18 +1,20 @@
 /**
  * Deniable SQLite container (SPEC §8, disguised variant).
  *
- * The vault blob is stored *inside* a genuine, minimal SQLite 3 database — as the
- * BLOB value of one row of a plausible `cache(k TEXT, v BLOB)` table, spilling into
- * a proper overflow-page chain — so the file is byte-for-byte valid: `page_count ×
- * page_size == file size`, `PRAGMA integrity_check` returns `ok`, and
- * `sqlite3 cache.db "SELECT ..."` works. There are **no trailing bytes past the
- * database's logical end**, which is the tell the old "append the blob after a
- * fixed 1 KiB stub" layout left behind.
+ * The vault blob is stored *inside* a genuine, minimal SQLite 3 database — split
+ * across several rows of a plausible `cache(k TEXT, v BLOB)` table
+ * (`page_cache_NNNN`, ~64 KiB each) under an interior b-tree root, one row per
+ * leaf page, each spilling into its own overflow-page chain. The file is
+ * byte-for-byte valid: `page_count × page_size == file size`, `PRAGMA
+ * integrity_check` returns `ok`, and `sqlite3 cache.db "SELECT ..."` works. There
+ * are **no trailing bytes past the database's logical end**, which is the tell the
+ * old "append the blob after a fixed 1 KiB stub" layout left behind.
  *
- * Honest limit (see docs/CRYPTO-REVIEW.md §6b): the vault row is one large
- * high-entropy BLOB, which deep content analysis can still flag as "not a normal
- * cache". This defeats structural triage (type, integrity_check, opening the DB),
- * not a forensic examiner who inspects the value bytes.
+ * Honest limit (see docs/CRYPTO-REVIEW.md §6b): the rows are still high-entropy
+ * ciphertext, which deep *content* analysis can flag as "not a normal cache".
+ * Spreading across ordinary-sized rows softens the single-giant-BLOB tell but
+ * does not eliminate it. This defeats structural triage (type, integrity_check,
+ * opening the DB), not a forensic examiner who inspects the value bytes.
  *
  * This is an independent, minimal implementation of just the slice of the SQLite
  * file format we emit and read back; it is not a general SQLite engine. Mirrored
@@ -30,9 +32,17 @@ export const SQLITE_MAGIC = new TextEncoder().encode(MAGIC);
 const SQLITE_VERSION_NUMBER = 3045000; // cosmetic; any recent value is fine
 const CACHE_ROOT_PAGE = 2;
 const CREATE_SQL = 'CREATE TABLE cache(k TEXT, v BLOB)';
-/** The `cache.k` value of the row whose BLOB holds the vault (vs. decoy rows). */
-const VAULT_KEY = 'page_cache';
-const VAULT_KEY_BYTES = new TextEncoder().encode(VAULT_KEY);
+/**
+ * The vault is stored as several `cache` rows keyed `page_cache_NNNN` (chunk
+ * order), reassembled by concatenation — several ordinary-sized rows read less
+ * like "one giant opaque BLOB" than a single row. Decoy rows use other keys.
+ */
+const VAULT_KEY_PREFIX = 'page_cache_';
+const VAULT_KEY_PREFIX_BYTES = new TextEncoder().encode(VAULT_KEY_PREFIX);
+/** Target chunk size per vault row (a plausible cache-entry size). */
+const VAULT_CHUNK = 64 * 1024;
+/** Cap on vault rows so the single interior root page holds every child pointer. */
+const MAX_VAULT_ROWS = 256;
 
 // Table-leaf payload thresholds (SQLite fileformat.html, reserved = 0).
 const MAX_LOCAL = U - 35;
@@ -153,57 +163,100 @@ function writeHeader(page: Uint8Array, pageCount: number): void {
   dv.setUint32(96, SQLITE_VERSION_NUMBER, false);
 }
 
-/** A tiny table-leaf cell for a decoy row (fits locally; never overflows). */
-function decoyCell(rowid: number, key: string, value: Uint8Array): Uint8Array {
-  const record = encodeRecord([{ text: new TextEncoder().encode(key) }, { blob: value }]);
-  return concatBytes(
+/** Interior table b-tree page: child pointers to leaf pages, keyed by rowid. */
+function buildInteriorPage(children: { page: number; key: number }[], rightMost: number): Uint8Array {
+  const page = new Uint8Array(PAGE_SIZE);
+  const cells = children.map(({ page: child, key }) => {
+    const kv = putVarint(key);
+    const cell = new Uint8Array(4 + kv.length);
+    new DataView(cell.buffer).setUint32(0, child, false); // left-child page number
+    cell.set(kv, 4);
+    return cell;
+  });
+  let content = PAGE_SIZE;
+  const ptrs: number[] = [];
+  for (const cell of cells) {
+    content -= cell.length;
+    page.set(cell, content);
+    ptrs.push(content);
+  }
+  page[0] = 0x05; // interior table b-tree
+  page[3] = (cells.length >> 8) & 0xff;
+  page[4] = cells.length & 0xff;
+  page[5] = (content >> 8) & 0xff;
+  page[6] = content & 0xff;
+  new DataView(page.buffer).setUint32(8, rightMost, false); // right-most child pointer
+  let po = 12; // interior header is 12 bytes (has the right-most pointer)
+  for (const p of ptrs) {
+    page[po++] = (p >> 8) & 0xff;
+    page[po++] = p & 0xff;
+  }
+  return page;
+}
+
+/** Build a table-leaf cell (varint payloadLen, varint rowid, local payload, [overflow ptr]). */
+function tableLeafCell(rowid: number, record: Uint8Array, firstOverflow: number): Uint8Array {
+  const local = splitPayload(record.length);
+  const parts: Uint8Array[] = [
     Uint8Array.from(putVarint(record.length)),
     Uint8Array.from(putVarint(rowid)),
-    record,
-  );
+    record.subarray(0, local),
+  ];
+  if (record.length > local) {
+    const ptr = new Uint8Array(4);
+    new DataView(ptr.buffer).setUint32(0, firstOverflow, false);
+    parts.push(ptr);
+  }
+  return concatBytes(...parts);
 }
 
 /**
- * Pack a vault blob into a valid, self-contained SQLite database. Decoy rows make
- * it look like a real cache; the blob is the largest row's BLOB value.
+ * Pack a vault blob into a valid, self-contained SQLite database: a `cache` table
+ * whose vault is split across several `page_cache_NNNN` rows (chunk order) plus a
+ * couple of decoy rows, under an interior b-tree root — one row per leaf page,
+ * each spilling into its own overflow chain. Several ordinary-sized rows read less
+ * like "one giant opaque BLOB". No trailing bytes: file size == page_count × page_size.
  */
 export function packSqlite(blob: Uint8Array): Uint8Array {
-  // Deterministic, innocuous-looking decoys (no RNG → reproducible artifact).
-  const decoys: { key: string; value: Uint8Array }[] = [
-    { key: 'schema_version', value: Uint8Array.of(0x32) },
-    { key: 'last_sync', value: new TextEncoder().encode('1700000000') },
+  const enc = new TextEncoder();
+  // Rows in rowid order: decoys first (small, fit locally), then vault chunks.
+  const rows: { key: Uint8Array; value: Uint8Array }[] = [
+    { key: enc.encode('schema_version'), value: Uint8Array.of(0x32) },
+    { key: enc.encode('last_sync'), value: enc.encode('1700000000') },
   ];
-
-  // The vault row, identified by its key (not its size). rowid keeps it last.
-  const vaultRecord = encodeRecord([{ text: VAULT_KEY_BYTES }, { blob: blob }]);
-  const P = vaultRecord.length;
-  const local = splitPayload(P);
-  const overflowBytes = P - local;
-  const overflowPageCount = overflowBytes > 0 ? Math.ceil(overflowBytes / OVERFLOW_CHUNK) : 0;
-
-  const pageCount = 2 + overflowPageCount;
-  const firstOverflowPage = overflowPageCount > 0 ? 3 : 0;
-
-  // Build the vault leaf cell: varint(P) varint(rowid) local-payload [overflow ptr].
-  const vaultCellParts: Uint8Array[] = [
-    Uint8Array.from(putVarint(P)),
-    Uint8Array.from(putVarint(3)),
-    vaultRecord.subarray(0, local),
-  ];
-  if (overflowPageCount > 0) {
-    const ptr = new Uint8Array(4);
-    new DataView(ptr.buffer).setUint32(0, firstOverflowPage, false);
-    vaultCellParts.push(ptr);
+  const n = Math.max(1, Math.min(MAX_VAULT_ROWS, Math.ceil(blob.length / VAULT_CHUNK)));
+  const chunkSize = Math.max(1, Math.ceil(blob.length / n));
+  for (let i = 0; i < n; i++) {
+    rows.push({
+      key: enc.encode(`${VAULT_KEY_PREFIX}${String(i).padStart(4, '0')}`),
+      value: blob.subarray(i * chunkSize, (i + 1) * chunkSize),
+    });
   }
-  const vaultCell = concatBytes(...vaultCellParts);
 
-  // Page 1: file header + schema (sqlite_master) leaf b-tree with one table row.
+  // Lay out one leaf page per row, each followed by its overflow chain: page 1 =
+  // header+schema, page 2 = interior root, leaves + overflow from page 3.
+  let nextPage = 3;
+  const plans = rows.map((row, i) => {
+    const record = encodeRecord([{ text: row.key }, { blob: row.value }]);
+    const local = splitPayload(record.length);
+    const ovPages = record.length > local ? Math.ceil((record.length - local) / OVERFLOW_CHUNK) : 0;
+    const leafPage = nextPage++;
+    const firstOverflow = ovPages > 0 ? nextPage : 0;
+    nextPage += ovPages;
+    return { rowid: i + 1, record, local, ovPages, leafPage, firstOverflow };
+  });
+  const pageCount = nextPage - 1;
+
+  const out = new Uint8Array(pageCount * PAGE_SIZE);
+  const dvOut = new DataView(out.buffer);
+
+  // Page 1: file header + sqlite_master (one row: the `cache` table, root page 2).
   const schemaRecord = encodeRecord([
-    { text: new TextEncoder().encode('table') },
-    { text: new TextEncoder().encode('cache') },
-    { text: new TextEncoder().encode('cache') },
+    { text: enc.encode('table') },
+    { text: enc.encode('cache') },
+    { text: enc.encode('cache') },
     { int: CACHE_ROOT_PAGE },
-    { text: new TextEncoder().encode(CREATE_SQL) },
+    { text: enc.encode(CREATE_SQL) },
   ]);
   const schemaCell = concatBytes(
     Uint8Array.from(putVarint(schemaRecord.length)),
@@ -212,38 +265,25 @@ export function packSqlite(blob: Uint8Array): Uint8Array {
   );
   const page1 = buildLeafPage([schemaCell], 100);
   writeHeader(page1, pageCount);
-
-  // Page 2: the `cache` table leaf. The vault row (rowid 3) must fit; decoy rows
-  // (rowid 1,2) are added only while they still fit alongside it, so a large
-  // inline vault cell never overflows the page. Pointer order is ascending rowid.
-  const decoyCells = [
-    decoyCell(1, decoys[0]!.key, decoys[0]!.value),
-    decoyCell(2, decoys[1]!.key, decoys[1]!.value),
-  ];
-  let used = 8 + (vaultCell.length + 2); // page header + the vault cell + its pointer
-  const included: Uint8Array[] = [];
-  for (const d of decoyCells) {
-    if (used + d.length + 2 <= PAGE_SIZE) {
-      included.push(d);
-      used += d.length + 2;
-    }
-  }
-  const page2 = buildLeafPage([...included, vaultCell], 0);
-
-  // Assemble directly into one preallocated buffer: page 1, page 2, then the
-  // overflow chain (pages 3..N) written in place. Avoids spreading thousands of
-  // page arrays into concatBytes and the extra full-size copy that would entail.
-  const out = new Uint8Array(pageCount * PAGE_SIZE);
   out.set(page1, 0);
-  out.set(page2, PAGE_SIZE);
-  const dvOut = new DataView(out.buffer);
-  let o = local;
-  for (let i = 0; i < overflowPageCount; i++) {
-    const base = (2 + i) * PAGE_SIZE;
-    const next = i === overflowPageCount - 1 ? 0 : 3 + i + 1;
-    dvOut.setUint32(base, next, false); // 4-byte next-overflow-page pointer
-    out.set(vaultRecord.subarray(o, o + OVERFLOW_CHUNK), base + 4);
-    o += OVERFLOW_CHUNK;
+
+  // Page 2: interior root — one child per leaf, keyed by that leaf's rowid.
+  const children = plans.map((p) => ({ page: p.leafPage, key: p.rowid }));
+  const rightMost = children[children.length - 1]!.page;
+  out.set(buildInteriorPage(children.slice(0, -1), rightMost), PAGE_SIZE);
+
+  // Each leaf page (one row) + its overflow chain.
+  for (const p of plans) {
+    const cell = tableLeafCell(p.rowid, p.record, p.firstOverflow);
+    out.set(buildLeafPage([cell], 0), (p.leafPage - 1) * PAGE_SIZE);
+    let o = p.local;
+    for (let j = 0; j < p.ovPages; j++) {
+      const base = (p.firstOverflow - 1 + j) * PAGE_SIZE;
+      const nextOv = j === p.ovPages - 1 ? 0 : p.firstOverflow + j + 1;
+      dvOut.setUint32(base, nextOv, false); // 4-byte next-overflow-page pointer
+      out.set(p.record.subarray(o, o + OVERFLOW_CHUNK), base + 4);
+      o += OVERFLOW_CHUNK;
+    }
   }
   return out;
 }
@@ -285,21 +325,28 @@ function decodeRow(payload: Uint8Array): { key: Uint8Array; value: Uint8Array } 
   return { key, value };
 }
 
+function startsWith(a: Uint8Array, prefix: Uint8Array): boolean {
+  if (a.length < prefix.length) return false;
+  for (let i = 0; i < prefix.length; i++) if (a[i] !== prefix[i]) return false;
+  return true;
+}
+
 /**
  * Extract the vault blob from a disguised SQLite database produced by
- * `packSqlite`, or null if the bytes are not such a database. Follows the
- * overflow chain to reassemble the largest BLOB (the vault row).
+ * `packSqlite`, or null if the bytes are not such a database. Walks the interior
+ * `cache` root to each leaf, reassembles every `page_cache_*` row (following its
+ * overflow chain), and concatenates them in leaf (chunk) order.
  */
 export function unpackSqlite(bytes: Uint8Array): Uint8Array | null {
   if (bytes.length < PAGE_SIZE) return null;
   for (let i = 0; i < SQLITE_MAGIC.length; i++) if (bytes[i] !== SQLITE_MAGIC[i]) return null;
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const pageSize = dv.getUint16(16, false);
-  if (pageSize !== PAGE_SIZE) return null;
+  if (dv.getUint16(16, false) !== PAGE_SIZE) return null;
   const pageCount = dv.getUint32(28, false);
   if (bytes.length < pageCount * PAGE_SIZE) return null;
 
-  const pageAt = (n: number): Uint8Array => bytes.subarray((n - 1) * PAGE_SIZE, n * PAGE_SIZE);
+  const pageAt = (n: number): Uint8Array =>
+    n >= 1 && n <= pageCount ? bytes.subarray((n - 1) * PAGE_SIZE, n * PAGE_SIZE) : new Uint8Array(0);
 
   // Reassemble a table-leaf cell's full payload, following overflow if needed.
   const reassemble = (page: Uint8Array, cellOff: number): Uint8Array | null => {
@@ -309,14 +356,14 @@ export function unpackSqlite(bytes: Uint8Array): Uint8Array | null {
     const [, n2] = readVarint(page, p); // rowid (ignored)
     p += n2;
     const local = splitPayload(P);
+    if (p + local > page.length) return null;
     const out = new Uint8Array(P);
-    const localBytes = page.subarray(p, p + local);
-    out.set(localBytes, 0);
+    out.set(page.subarray(p, p + local), 0);
     let filled = local;
     if (P > local) {
       let nextPage = new DataView(page.buffer, page.byteOffset + p + local, 4).getUint32(0, false);
       while (nextPage !== 0 && filled < P) {
-        if (nextPage > pageCount) return null;
+        if (nextPage < 1 || nextPage > pageCount) return null;
         const op = pageAt(nextPage);
         const next = new DataView(op.buffer, op.byteOffset, 4).getUint32(0, false);
         const take = Math.min(OVERFLOW_CHUNK, P - filled);
@@ -328,26 +375,39 @@ export function unpackSqlite(bytes: Uint8Array): Uint8Array | null {
     return filled === P ? out : null;
   };
 
-  const keyEquals = (a: Uint8Array, b: Uint8Array): boolean =>
-    a.length === b.length && a.every((x, i) => x === b[i]);
-
-  // Read the `cache` table leaf (root page 2 for our writer) and return the BLOB
-  // of the row keyed VAULT_KEY (never a decoy, whatever the sizes).
-  const readVaultRow = (page: Uint8Array, headerOffset: number): Uint8Array | null => {
-    if (page[headerOffset] !== 0x0d) return null; // must be a table-leaf page
-    const nCells = (page[headerOffset + 3]! << 8) | page[headerOffset + 4]!;
-    const ptrBase = headerOffset + 8;
+  // Child leaf pages of the `cache` table, in b-tree (rowid) order.
+  const cache = pageAt(CACHE_ROOT_PAGE);
+  const childPages: number[] = [];
+  if (cache[0] === 0x05) {
+    // Interior table page: [left-child 4B][varint rowid] cells + right-most pointer.
+    const nCells = (cache[3]! << 8) | cache[4]!;
+    const rootDv = new DataView(cache.buffer, cache.byteOffset, cache.byteLength);
     for (let i = 0; i < nCells; i++) {
-      const cellOff = (page[ptrBase + i * 2]! << 8) | page[ptrBase + i * 2 + 1]!;
-      const payload = reassemble(page, cellOff);
+      const cellOff = (cache[12 + i * 2]! << 8) | cache[12 + i * 2 + 1]!;
+      childPages.push(rootDv.getUint32(cellOff, false));
+    }
+    childPages.push(rootDv.getUint32(8, false)); // right-most child
+  } else if (cache[0] === 0x0d) {
+    childPages.push(CACHE_ROOT_PAGE); // tolerate a single-leaf root
+  } else {
+    return null;
+  }
+
+  // Reassemble every page_cache_* row and concatenate in traversal order.
+  const parts: Uint8Array[] = [];
+  for (const cp of childPages) {
+    const leaf = pageAt(cp);
+    if (leaf[0] !== 0x0d) continue;
+    const nCells = (leaf[3]! << 8) | leaf[4]!;
+    for (let i = 0; i < nCells; i++) {
+      const cellOff = (leaf[8 + i * 2]! << 8) | leaf[8 + i * 2 + 1]!;
+      const payload = reassemble(leaf, cellOff);
       if (!payload) continue;
       const row = decodeRow(payload);
-      if (row && keyEquals(row.key, VAULT_KEY_BYTES)) return row.value;
+      if (row && startsWith(row.key, VAULT_KEY_PREFIX_BYTES)) parts.push(row.value);
     }
-    return null;
-  };
-
-  const cache = pageAt(CACHE_ROOT_PAGE);
-  const blob = readVaultRow(cache, 0);
-  return blob && blob.length > 0 ? blob : null;
+  }
+  if (parts.length === 0) return null;
+  const blob = concatBytes(...parts);
+  return blob.length > 0 ? blob : null;
 }
