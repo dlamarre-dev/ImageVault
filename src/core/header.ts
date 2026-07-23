@@ -61,7 +61,6 @@ export function encodeHeader(h: Header): Uint8Array {
   writeU32(body, o, h.blobLen);
   o += 4;
   body.set(h.hash, o);
-  o += HASH_LEN;
   return concatBytes(MAGIC, body);
 }
 
