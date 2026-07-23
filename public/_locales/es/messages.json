@@ -899,5 +899,23 @@
   },
   "recoveryLossless": {
     "message": "Consérvalas tal cual — redimensionar, recomprimir o pasarlas por un servicio que recodifique imágenes las destruye."
+  },
+  "onboardingTitle": {
+    "message": "Bienvenido a StegoShard"
+  },
+  "onboardingBody": {
+    "message": "StegoShard cifra tu archivo y lo guarda en la forma que elijas. Hay dos familias de salida:"
+  },
+  "onboardingDeniable": {
+    "message": "Se camufla como archivos normales — un conjunto de fotos o una base de datos de aspecto real. Elígelo cuando el objetivo es ocultar que existe un secreto."
+  },
+  "onboardingOvert": {
+    "message": "Abiertamente StegoShard — imágenes QR, un PDF imprimible o un archivo simple. Elígelo para una copia de seguridad sencilla y robusta."
+  },
+  "onboardingKeep": {
+    "message": "En cualquier caso, guarda tu contraseña — no hay recuperación si la pierdes."
+  },
+  "onboardingDismiss": {
+    "message": "Empezar"
   }
 }

@@ -23,6 +23,8 @@ export interface Prefs {
   title: string;
   asZip: boolean;
   includeInstructions: boolean;
+  /** First-run onboarding shown and dismissed. */
+  seenOnboarding: boolean;
 }
 
 const DEFAULT_PREFS: Prefs = {
@@ -33,6 +35,7 @@ const DEFAULT_PREFS: Prefs = {
   title: '',
   asZip: true,
   includeInstructions: false,
+  seenOnboarding: false,
 };
 
 export async function getPrefs(): Promise<Prefs> {

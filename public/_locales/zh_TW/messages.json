@@ -899,5 +899,23 @@
   },
   "recoveryLossless": {
     "message": "請原樣保存——縮放、重新壓縮，或透過會重新編碼影像的服務傳送都會使其損毀。"
+  },
+  "onboardingTitle": {
+    "message": "歡迎使用 StegoShard"
+  },
+  "onboardingBody": {
+    "message": "StegoShard 會加密你的檔案，並以你選擇的形式儲存。輸出分為兩類："
+  },
+  "onboardingDeniable": {
+    "message": "偽裝成一般檔案——一組相片，或看似真實的資料庫。當目標是隱藏「機密存在」本身時選用。"
+  },
+  "onboardingOvert": {
+    "message": "明確為 StegoShard——QR 影像、可列印 PDF 或純檔案。想要簡單、穩健的備份時選用。"
+  },
+  "onboardingKeep": {
+    "message": "無論如何，請保管好你的密碼——遺失將無法還原。"
+  },
+  "onboardingDismiss": {
+    "message": "開始"
   }
 }

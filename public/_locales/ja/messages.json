@@ -899,5 +899,23 @@
   },
   "recoveryLossless": {
     "message": "保存されたままの状態で保管してください。リサイズ・再圧縮、または画像を再エンコードするサービスを通すと破損します。"
+  },
+  "onboardingTitle": {
+    "message": "StegoShard へようこそ"
+  },
+  "onboardingBody": {
+    "message": "StegoShard はファイルを暗号化し、選んだ形式で保存します。出力には2つの系統があります："
+  },
+  "onboardingDeniable": {
+    "message": "通常のファイルに紛れます — 写真のセットや、本物に見えるデータベース。秘密の存在自体を隠したいときに選びます。"
+  },
+  "onboardingOvert": {
+    "message": "明示的に StegoShard — QR画像、印刷可能なPDF、または単純なファイル。手軽で頑丈なバックアップに選びます。"
+  },
+  "onboardingKeep": {
+    "message": "いずれの場合もパスワードを保管してください。失うと復元できません。"
+  },
+  "onboardingDismiss": {
+    "message": "はじめる"
   }
 }

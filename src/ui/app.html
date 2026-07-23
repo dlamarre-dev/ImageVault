@@ -46,6 +46,24 @@
         <p id="unlock-status" class="status" role="status"></p>
       </section>
 
+      <!-- First-run onboarding: shown once before the chooser. -->
+      <section id="onboarding" class="card banner" hidden>
+        <h2 data-i18n="onboardingTitle"></h2>
+        <p class="lead" data-i18n="onboardingBody"></p>
+        <ul class="onboarding-list">
+          <li>
+            <span class="mode-badge mode-badge--deniable" data-i18n="badgeDeniable"></span>
+            <span data-i18n="onboardingDeniable"></span>
+          </li>
+          <li>
+            <span class="mode-badge mode-badge--overt" data-i18n="badgeOvert"></span>
+            <span data-i18n="onboardingOvert"></span>
+          </li>
+        </ul>
+        <p class="muted" data-i18n="onboardingKeep"></p>
+        <button id="onboarding-dismiss" class="btn-primary" data-i18n="onboardingDismiss"></button>
+      </section>
+
       <!-- Launch chooser: pick a workflow (shown once unlocked). -->
       <section id="chooser" class="card banner" hidden>
         <h2 data-i18n="chooserTitle"></h2>
