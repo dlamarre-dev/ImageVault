@@ -36,8 +36,9 @@ def test_disguised_is_valid_sqlite_with_no_trailing_bytes():
 
 def test_disguised_opens_in_sqlite():
     """The disguised container is a real DB whose `cache` table holds the payload
-    as the `page_cache` row's BLOB; sqlite3 opens it and integrity_check passes."""
-    blob = os.urandom(50_000)
+    split across `page_cache_NNNN` rows; sqlite3 opens it, integrity_check passes,
+    and concatenating those rows in key order reproduces the blob."""
+    blob = os.urandom(200_000)  # large enough to span several chunk rows
     wrapped = wrap_binary(blob, "disguised")
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -46,9 +47,12 @@ def test_disguised_opens_in_sqlite():
             f.write(wrapped)
         con = sqlite3.connect(path)
         assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        row = con.execute("SELECT v FROM cache WHERE k='page_cache'").fetchone()
+        rows = con.execute(
+            "SELECT v FROM cache WHERE k LIKE 'page_cache\\_%' ESCAPE '\\' ORDER BY k"
+        ).fetchall()
         con.close()
-        assert row[0] == blob
+        assert len(rows) >= 2  # actually spread across multiple rows
+        assert b"".join(r[0] for r in rows) == blob
     finally:
         os.remove(path)
 

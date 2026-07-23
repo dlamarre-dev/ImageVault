@@ -35,3 +35,19 @@ describe('sqlite container pack/unpack', () => {
     expect(unpackSqlite(notSqlite)).toBeNull(); // no SQLite magic
   });
 });
+
+describe('sqlite container reader robustness (multi-row)', () => {
+  it('spreads a large blob across several page_cache rows and still round-trips', () => {
+    const blob = Uint8Array.from({ length: 300_000 }, (_, i) => (i * 97) & 0xff);
+    const db = packSqlite(blob);
+    // Page 2 must be an interior b-tree root (0x05) once there are many rows.
+    expect(db[PAGE_SIZE]).toBe(0x05);
+    expect([...unpackSqlite(db)!]).toEqual([...blob]);
+  });
+
+  it('returns null when the root b-tree page type is neither interior nor leaf', () => {
+    const db = packSqlite(Uint8Array.of(1, 2, 3, 4));
+    db[PAGE_SIZE] = 0x99; // corrupt the cache root page type
+    expect(unpackSqlite(db)).toBeNull();
+  });
+});

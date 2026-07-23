@@ -19,7 +19,11 @@ SQLITE_MAGIC = b"SQLite format 3\x00"
 SQLITE_VERSION_NUMBER = 3045000
 CACHE_ROOT_PAGE = 2
 CREATE_SQL = b"CREATE TABLE cache(k TEXT, v BLOB)"
-VAULT_KEY = b"page_cache"
+# The vault is split across several `page_cache_NNNN` rows (chunk order),
+# reassembled by concatenation; decoy rows use other keys.
+VAULT_KEY_PREFIX = b"page_cache_"
+VAULT_CHUNK = 64 * 1024
+MAX_VAULT_ROWS = 256
 
 MAX_LOCAL = U - 35
 MIN_LOCAL = (U - 12) * 32 // 255 - 23
@@ -120,28 +124,62 @@ def _write_header(page: bytearray, page_count: int) -> None:
     struct.pack_into(">I", page, 96, SQLITE_VERSION_NUMBER)
 
 
-def _decoy_cell(rowid: int, key: bytes, value: bytes) -> bytes:
-    record = _encode_record([("text", key), ("blob", value)])
-    return _put_varint(len(record)) + _put_varint(rowid) + record
+def _build_interior_page(children: list[tuple[int, int]], right_most: int) -> bytearray:
+    """Interior table b-tree page: (left-child page, rowid key) cells + right-most."""
+    page = bytearray(PAGE_SIZE)
+    cells = [struct.pack(">I", child) + _put_varint(key) for child, key in children]
+    content = PAGE_SIZE
+    ptrs = []
+    for cell in cells:
+        content -= len(cell)
+        page[content : content + len(cell)] = cell
+        ptrs.append(content)
+    page[0] = 0x05  # interior table b-tree
+    struct.pack_into(">H", page, 3, len(cells))
+    struct.pack_into(">H", page, 5, content)
+    struct.pack_into(">I", page, 8, right_most)  # right-most child pointer
+    po = 12  # interior header is 12 bytes
+    for p in ptrs:
+        struct.pack_into(">H", page, po, p)
+        po += 2
+    return page
+
+
+def _table_leaf_cell(rowid: int, record: bytes, first_overflow: int) -> bytes:
+    local = _split_payload(len(record))
+    cell = bytearray()
+    cell += _put_varint(len(record))
+    cell += _put_varint(rowid)
+    cell += record[:local]
+    if len(record) > local:
+        cell += struct.pack(">I", first_overflow)
+    return bytes(cell)
 
 
 def pack_sqlite(blob: bytes) -> bytes:
-    decoys = [(b"schema_version", b"\x32"), (b"last_sync", b"1700000000")]
+    # Rows in rowid order: decoys first, then vault chunks (page_cache_NNNN).
+    rows = [(b"schema_version", b"\x32"), (b"last_sync", b"1700000000")]
+    n = max(1, min(MAX_VAULT_ROWS, -(-len(blob) // VAULT_CHUNK)))
+    chunk = max(1, -(-len(blob) // n))
+    for i in range(n):
+        rows.append((b"%s%04d" % (VAULT_KEY_PREFIX, i), blob[i * chunk : (i + 1) * chunk]))
 
-    vault_record = _encode_record([("text", VAULT_KEY), ("blob", blob)])
-    P = len(vault_record)
-    local = _split_payload(P)
-    overflow_bytes = P - local
-    overflow_pages = (overflow_bytes + OVERFLOW_CHUNK - 1) // OVERFLOW_CHUNK if overflow_bytes else 0
-    page_count = 2 + overflow_pages
-    first_overflow = 3 if overflow_pages else 0
+    # Lay out one leaf page per row + its overflow chain (page 3 onward).
+    next_page = 3
+    plans = []
+    for i, (key, value) in enumerate(rows):
+        record = _encode_record([("text", key), ("blob", value)])
+        local = _split_payload(len(record))
+        ov_bytes = len(record) - local
+        ov_pages = (ov_bytes + OVERFLOW_CHUNK - 1) // OVERFLOW_CHUNK if ov_bytes else 0
+        leaf_page = next_page
+        next_page += 1
+        first_overflow = next_page if ov_pages else 0
+        next_page += ov_pages
+        plans.append((i + 1, record, local, ov_pages, leaf_page, first_overflow))
+    page_count = next_page - 1
 
-    vault_cell = bytearray()
-    vault_cell += _put_varint(P)
-    vault_cell += _put_varint(3)
-    vault_cell += vault_record[:local]
-    if overflow_pages:
-        vault_cell += struct.pack(">I", first_overflow)
+    out = bytearray(page_count * PAGE_SIZE)
 
     schema_record = _encode_record(
         [
@@ -155,28 +193,26 @@ def pack_sqlite(blob: bytes) -> bytes:
     schema_cell = _put_varint(len(schema_record)) + _put_varint(1) + schema_record
     page1 = _build_leaf_page([schema_cell], 100)
     _write_header(page1, page_count)
+    out[0:PAGE_SIZE] = page1
 
-    used = 8 + (len(vault_cell) + 2)
-    included = []
-    for key, value in decoys:
-        cell = _decoy_cell(len(included) + 1, key, value)
-        if used + len(cell) + 2 <= PAGE_SIZE:
-            included.append(cell)
-            used += len(cell) + 2
-    page2 = _build_leaf_page(included + [bytes(vault_cell)], 0)
+    children = [(leaf_page, rowid) for (rowid, _r, _l, _op, leaf_page, _fo) in plans]
+    right_most = children[-1][0]
+    out[PAGE_SIZE : 2 * PAGE_SIZE] = _build_interior_page(children[:-1], right_most)
 
-    pages = [page1, page2]
-    o = local
-    for i in range(overflow_pages):
-        page = bytearray(PAGE_SIZE)
-        chunk = vault_record[o : o + OVERFLOW_CHUNK]
-        nxt = 0 if i == overflow_pages - 1 else 3 + i + 1
-        struct.pack_into(">I", page, 0, nxt)
-        page[4 : 4 + len(chunk)] = chunk
-        pages.append(page)
-        o += OVERFLOW_CHUNK
+    for rowid, record, local, ov_pages, leaf_page, first_overflow in plans:
+        cell = _table_leaf_cell(rowid, record, first_overflow)
+        base = (leaf_page - 1) * PAGE_SIZE
+        out[base : base + PAGE_SIZE] = _build_leaf_page([cell], 0)
+        o = local
+        for j in range(ov_pages):
+            ob = (first_overflow - 1 + j) * PAGE_SIZE
+            nxt = 0 if j == ov_pages - 1 else first_overflow + j + 1
+            struct.pack_into(">I", out, ob, nxt)
+            chunk_bytes = record[o : o + OVERFLOW_CHUNK]
+            out[ob + 4 : ob + 4 + len(chunk_bytes)] = chunk_bytes
+            o += OVERFLOW_CHUNK
 
-    return b"".join(bytes(p) for p in pages)
+    return bytes(out)
 
 
 def _decode_row(payload: bytes) -> tuple[bytes, bytes] | None:
@@ -239,15 +275,37 @@ def unpack_sqlite(data: bytes) -> bytes | None:
         return bytes(out) if filled == P else None
 
     cache = page_at(CACHE_ROOT_PAGE)
-    if cache[0] != 0x0D:
+    child_pages: list[int] = []
+    if cache[0] == 0x05:  # interior table page
+        (n_cells,) = struct.unpack_from(">H", cache, 3)
+        for i in range(n_cells):
+            (cell_off,) = struct.unpack_from(">H", cache, 12 + i * 2)
+            (child,) = struct.unpack_from(">I", cache, cell_off)
+            child_pages.append(child)
+        (right_most,) = struct.unpack_from(">I", cache, 8)
+        child_pages.append(right_most)
+    elif cache[0] == 0x0D:  # tolerate a single-leaf root
+        child_pages.append(CACHE_ROOT_PAGE)
+    else:
         return None
-    (n_cells,) = struct.unpack_from(">H", cache, 3)
-    for i in range(n_cells):
-        (cell_off,) = struct.unpack_from(">H", cache, 8 + i * 2)
-        payload = reassemble(cache, cell_off)
-        if payload is None:
+
+    parts: list[bytes] = []
+    for cp in child_pages:
+        if cp < 1 or cp > page_count:
             continue
-        row = _decode_row(payload)
-        if row and row[0] == VAULT_KEY:
-            return row[1] if len(row[1]) > 0 else None
-    return None
+        leaf = page_at(cp)
+        if leaf[0] != 0x0D:
+            continue
+        (n_cells,) = struct.unpack_from(">H", leaf, 3)
+        for i in range(n_cells):
+            (cell_off,) = struct.unpack_from(">H", leaf, 8 + i * 2)
+            payload = reassemble(leaf, cell_off)
+            if payload is None:
+                continue
+            row = _decode_row(payload)
+            if row and row[0].startswith(VAULT_KEY_PREFIX):
+                parts.append(row[1])
+    if not parts:
+        return None
+    blob = b"".join(parts)
+    return blob if len(blob) > 0 else None
