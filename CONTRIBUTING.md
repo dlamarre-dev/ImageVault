@@ -55,6 +55,34 @@ Once `SPEC.md` is frozen (Phase 1), the on-image format is a **public, versioned
 interface**. Breaking changes require a version bump in the header and a spec update, and
 must keep the Python reference decoder in sync (it doubles as a conformance test in CI).
 
+## Building & releasing
+
+Local builds (see `package.json` scripts):
+
+- `npm run build` (Chrome/Edge), `build:firefox`, `build:web` — extension / web app.
+- `npm run build:cli` then `npm run package:cli` — the standalone CLI (`deno compile`).
+- `npm run package` — all store builds + packaging (see [docs/STORE.md](docs/STORE.md)).
+- `npm run vectors` / `npm run fixtures` — regenerate frozen crypto vectors /
+  cross-implementation conformance fixtures (only when the format deliberately changes).
+
+Release flow:
+
+1. Land the changes on `main` (CI green: lint, typecheck, coverage, builds,
+   Python conformance, QRAMM scan).
+2. Update [CHANGELOG.md](CHANGELOG.md) and bump `package.json` `version` (SemVer).
+   If the **on-disk format** changed, follow [docs/VERSIONING.md](docs/VERSIONING.md)
+   (bump the format constant, sync the Python decoder, regenerate vectors/fixtures).
+3. Tag `vX.Y.Z`; the CLI release is packaged by `.github/workflows/release-cli.yml`.
+4. Store submissions: [docs/STORE.md](docs/STORE.md).
+
+## Reviewers
+
+`main` is protected and every PR needs a review. Cryptographic or on-format changes
+should get a second set of eyes with security experience — **a standing crypto
+reviewer is wanted**; open an issue if you can help. Until then, such PRs must cite
+the relevant [SPEC.md](SPEC.md) / [docs/CRYPTO-REVIEW.md](docs/CRYPTO-REVIEW.md)
+section and keep the conformance + hardening tests green.
+
 ## Commit messages
 
 Use clear, imperative English (e.g. "Add Reed-Solomon shard reconstruction"). Keep

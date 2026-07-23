@@ -1,6 +1,6 @@
 {
   "name": "stegoshard",
-  "version": "0.0.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Encrypt a file and encode it into robust, error-corrected images you can store anywhere: disk, paper, or the cloud.",
   "license": "MIT",

@@ -25,6 +25,9 @@ const saveSection = el('save');
 const statePill = el('state-pill');
 
 const chooserSection = el('chooser');
+const onboardingSection = el('onboarding');
+// Assume seen until prefs load, so the banner never flashes before we know.
+let onboardingSeen = true;
 const expertView = el('expert-view');
 const wizardRoot = el('wizard-root');
 const workflowsBtn = el<HTMLButtonElement>('workflows-btn');
@@ -147,6 +150,8 @@ if (HAS_GOOGLE_PHOTOS) {
 
 async function loadPrefs(): Promise<void> {
   const prefs = await getPrefs();
+  onboardingSeen = prefs.seenOnboarding;
+  void refreshState();
   const destination =
     prefs.destination === 'cloud' && !HAS_GOOGLE_PHOTOS ? 'disk' : prefs.destination;
   setRadio('dest', destination);
@@ -213,7 +218,11 @@ async function refreshState(): Promise<void> {
   const unlocked = hasKey && session !== null;
   show(noKeySection, !hasKey);
   show(lockedSection, hasKey && !session);
-  show(chooserSection, unlocked && view === 'chooser');
+  // First run: show onboarding in place of the chooser until dismissed.
+  const onChooser = unlocked && view === 'chooser';
+  const showOnboarding = onChooser && !onboardingSeen;
+  show(onboardingSection, showOnboarding);
+  show(chooserSection, onChooser && !showOnboarding);
   show(expertView, unlocked && view === 'expert');
   show(saveSection, unlocked);
   show(wizardRoot, unlocked && view === 'guided');
@@ -235,6 +244,12 @@ settingsModal.addEventListener('click', (e) => {
 });
 settingsModal.addEventListener('close', () => void refreshState());
 wireKeyManager(() => void refreshState());
+
+el<HTMLButtonElement>('onboarding-dismiss').addEventListener('click', () => {
+  onboardingSeen = true;
+  void savePrefs({ seenOnboarding: true });
+  void refreshState();
+});
 
 el<HTMLButtonElement>('choose-guided').addEventListener('click', enterGuided);
 el<HTMLButtonElement>('choose-expert').addEventListener('click', enterExpert);

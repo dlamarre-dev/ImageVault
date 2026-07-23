@@ -952,3 +952,18 @@ details.advanced[open] > summary::before {
 .recovery-list li {
   margin: 2px 0;
 }
+
+/* First-run onboarding */
+.onboarding-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.onboarding-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}

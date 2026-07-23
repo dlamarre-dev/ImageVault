@@ -995,5 +995,23 @@
   },
   "recoveryLossless": {
     "message": "Keep these exactly as saved — resizing, re-compressing, or sending them through a service that re-encodes images destroys them."
+  },
+  "onboardingTitle": {
+    "message": "Welcome to StegoShard"
+  },
+  "onboardingBody": {
+    "message": "StegoShard encrypts your file, then saves it in the form you pick. There are two families of output:"
+  },
+  "onboardingDeniable": {
+    "message": "Blends in as ordinary files — a set of photos, or a real-looking database. Pick this when the goal is to hide that a secret exists at all."
+  },
+  "onboardingOvert": {
+    "message": "Openly StegoShard — QR images, a printable PDF, or a plain file. Pick this for a straightforward, robust backup."
+  },
+  "onboardingKeep": {
+    "message": "Either way, keep your password — there is no recovery if you lose it."
+  },
+  "onboardingDismiss": {
+    "message": "Get started"
   }
 }
