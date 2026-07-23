@@ -61,7 +61,7 @@
     "@typescript-eslint/parser": "^8.18.0",
     "@vitest/coverage-v8": "^4.1.10",
     "cross-env": "^10.1.0",
-    "eslint": "^9.17.0",
+    "eslint": "^10.7.0",
     "eslint-config-prettier": "^9.1.0",
     "fast-png": "^8.0.0",
     "globals": "^17.7.0",
