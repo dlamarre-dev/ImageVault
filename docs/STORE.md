@@ -22,8 +22,9 @@ what will be uploaded as an unpacked extension and test it before submitting.
 - **Name / short description**: localized in `public/_locales/*/messages.json`
   (`extName` ≤ 75 chars, `extDesc` ≤ 132 chars), keyword-oriented per language.
 - **Category**: Productivity / Tools.
-- **Single purpose**: "Encrypt a file and encode it into robust, error-corrected
-  images that can be restored from disk, paper, or Google Photos."
+- **Single purpose**: "Encrypt a file and store it inside images — either as
+  robust, error-corrected carriers restorable from disk, paper, or Google Photos,
+  or hidden deniably inside ordinary photos."
 - **Privacy policy URL**: host `docs/PRIVACY.md` (e.g. GitHub Pages) and link it.
 
 ## Permission justifications (Chrome Web Store review)
@@ -125,6 +126,8 @@ extension (and the web app) are fully usable without Google Photos.
 
 ## Before 1.0
 
-- Native proofread of the `ja` and `zh_TW` locales (see LOCALIZATION.md).
+- Native proofread of the `ja` and `zh_TW` locales (see LOCALIZATION.md), and of
+  the repositioned store strings (`extName`, `extDesc`, `destSqlite`) across all
+  eight locales — the two-storage-models wording was drafted, not natively reviewed.
 - Consider an external review of the cryptographic core.
 - Generate localized store screenshots (pipeline still manual).

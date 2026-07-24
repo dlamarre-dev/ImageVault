@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "StegoShard : chiffrez et sauvegardez vos secrets en images QR / papier",
+    "message": "StegoShard : chiffrez, sauvegardez et cachez vos secrets en images",
     "description": "Extension name (max 75 chars), keyword-oriented (plan §7)."
   },
   "extDesc": {
-    "message": "Chiffrez un fichier en images robustes et corrigées d'erreurs, à garder sur disque, imprimer ou téléverser.",
+    "message": "Stockez vos secrets en images : sauvegarde robuste corrigée d'erreurs, stéganographie à déni plausible, ou les deux.",
     "description": "Store listing description (max 132 chars)."
   },
   "popupTagline": {
@@ -820,7 +820,7 @@
     "description": "Wizard: stego key-mode description."
   },
   "destSqlite": {
-    "message": "Fausse base de données (.db)",
+    "message": "Base de données leurre (.db)",
     "description": "Destination: a binary vault disguised with a real SQLite header."
   },
   "destSqliteDesc": {
