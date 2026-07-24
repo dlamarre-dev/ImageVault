@@ -18,7 +18,7 @@ store the archive resiliently and hide only the recovery key in an everyday phot
 > She picks **Hybrid mode**:
 >
 > - the encrypted archive becomes **six resilient images**, which she **prints** and files away;
-> - the **recovery key** is hidden inside an ordinary **family photo** she leaves in Google Photos.
+> - the **recovery key** is hidden inside an ordinary **family photo** she leaves in Dropbox.
 >
 > Years later one printed page is lost and coffee has ruined another. It doesn't matter:
 > **five pages plus the vacation photo** are enough, and she restores everything
@@ -42,14 +42,14 @@ Start from the question that actually matters for your secret:
                      Which property matters?
 
           ┌────────────────────┴────────────────────┐
-          │                                          │
-  It must survive                            Nobody must know
-  everything                                 it even exists
-  (loss · print · cloud)                     (plausible deniability)
-          │                                          │
-          ▼                                          ▼
-  🛡 Resilient Storage                        🎭 Deniable Storage
-          │                                          │
+          │                                         │
+  It must survive                           Nobody must know
+  everything                                it even exists
+  (loss · print · cloud)                    (plausible deniability)
+          │                                         │
+          ▼                                         ▼
+  🛡 Resilient Storage                       🎭 Deniable Storage
+          │                                         │
           └────────────────────┬────────────────────┘
                                ▼
                          🔗 Hybrid Mode
@@ -163,6 +163,22 @@ import images (any source) → decode each (self-describing header → shard)
 The differentiator: **losing a page, a deleted album image, or an unreadable code does
 not stop restoration** as long as at least `k` images survive.
 
+## Performance
+
+StegoShard targets **small, high-value secrets**, so the only deliberate cost is the one
+that protects you: **key derivation**. Every unlock runs Argon2id at **256 MiB, t=4**
+(frozen in [SPEC.md](SPEC.md)), tuned for a **~1–2 s** unlock on typical desktop hardware
+while staying viable in a browser tab and on a phone. That slowness is the point — it
+makes an offline password search expensive.
+
+Everything else is negligible next to it. Payloads are capped small (≤ 1 MiB per
+image/PDF vault, ≤ 100 MB for the binary/decoy-database output), so encryption,
+Reed-Solomon erasure coding, and image encode/decode finish effectively instantly compared
+with the key-derivation step. It all runs **locally** — WebAssembly in the browser, the
+bundled runtime in the CLI — with no network round-trips (the optional cloud destination
+aside). Budget roughly **256 MiB of transient memory** for Argon2id; it is freed as soon
+as the key is derived.
+
 ## Design principles
 
 - **Two incompatible guarantees, made explicit.** Resilience and deniability pull in
@@ -170,7 +186,7 @@ not stop restoration** as long as at least `k` images survive.
   looks like coded noise, not vacation photos — deliberately; Deniable Storage blends
   in but is fragile by nature. StegoShard makes you choose rather than pretending one
   setting does both, and documents the honest limits of each.
-- **Small secrets.** ~4× size overhead; large binaries are out of scope.
+- **Small secrets.** ~4× size overhead when stored as images; large binaries are out of scope.
 - **No single support is trusted.** Resilience (multiple destinations + erasure coding)
   is the value proposition.
 - **The offline core (file → images → disk/paper) depends on no third-party service or
