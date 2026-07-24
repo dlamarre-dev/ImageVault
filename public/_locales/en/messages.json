@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "StegoShard: encrypt & back up secrets as QR / paper images",
+    "message": "StegoShard: encrypt, back up & hide secrets in images",
     "description": "Extension name (max 75 chars), keyword-oriented (plan §7)."
   },
   "extDesc": {
-    "message": "Encrypt a file into robust, error-corrected images you can store on disk, print on paper, or upload to the cloud.",
+    "message": "Store secrets in images: robust error-corrected backup, plausible-deniability steganography, or both.",
     "description": "Store listing description (max 132 chars)."
   },
   "popupTagline": {
@@ -840,7 +840,7 @@
     "description": "Wizard: stego key-mode description."
   },
   "destSqlite": {
-    "message": "Fake database (.db)",
+    "message": "Decoy database (.db)",
     "description": "Destination: a binary vault disguised with a real SQLite header."
   },
   "destSqliteDesc": {

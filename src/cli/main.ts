@@ -1,7 +1,8 @@
 /**
- * StegoShard CLI — encrypt a file into resilient QR images (and back) from a
- * terminal. Reuses the exact `@core` format as the extension and web app, so
- * vaults are interchangeable across all three (and the Python decoder).
+ * StegoShard CLI — encrypt a file and store it as resilient images, an opaque
+ * binary file, or a decoy database (and back) from a terminal. Reuses the exact
+ * `@core` format as the extension and web app, so vaults are interchangeable
+ * across all three (and the Python decoder).
  *
  * Commands: `save`, `restore`, `estimate`. Run `stegoshard --help` for usage.
  */
@@ -20,7 +21,8 @@ import {
 } from './commands';
 import { GalleryRestoreError, type KeyMode } from '@core';
 
-const USAGE = `StegoShard — encrypt a file into resilient QR images, and restore it.
+const USAGE = `StegoShard — encrypt a file into resilient images, an opaque binary
+file, or a decoy database, and restore it.
 
 Usage:
   stegoshard save <file> [options]

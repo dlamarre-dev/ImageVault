@@ -1,9 +1,9 @@
 {
   "extName": {
-    "message": "StegoShard：將機密加密並以 QR／紙本圖像備份"
+    "message": "StegoShard：將機密加密、備份並隱藏於圖像"
   },
   "extDesc": {
-    "message": "把檔案加密成具備錯誤更正的穩健圖像，可存於磁碟、列印或上傳雲端。"
+    "message": "把機密存於圖像：具錯誤更正的穩健備份、可否認的隱寫術，或兩者兼具。"
   },
   "popupTagline": {
     "message": "把檔案加密成穩健圖像 — 磁碟、紙本或雲端。"
@@ -724,7 +724,7 @@
     "description": "Wizard: stego key-mode description."
   },
   "destSqlite": {
-    "message": "偽裝的資料庫（.db）",
+    "message": "誘餌資料庫（.db）",
     "description": "Destination: a binary vault disguised with a real SQLite header."
   },
   "destSqliteDesc": {

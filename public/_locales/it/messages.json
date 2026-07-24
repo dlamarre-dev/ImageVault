@@ -1,9 +1,9 @@
 {
   "extName": {
-    "message": "StegoShard: cifra e salva i segreti come immagini QR / carta"
+    "message": "StegoShard: cifra, salva e nascondi i segreti nelle immagini"
   },
   "extDesc": {
-    "message": "Cifra un file in immagini robuste e con correzione d'errore da salvare su disco, stampare o caricare nel cloud."
+    "message": "Conserva i segreti nelle immagini: backup robusto con correzione d'errore, steganografia negabile, o entrambi."
   },
   "popupTagline": {
     "message": "Cifra un file in immagini resilienti — disco, carta o cloud."
@@ -724,7 +724,7 @@
     "description": "Wizard: stego key-mode description."
   },
   "destSqlite": {
-    "message": "Database falso (.db)",
+    "message": "Database esca (.db)",
     "description": "Destination: a binary vault disguised with a real SQLite header."
   },
   "destSqliteDesc": {

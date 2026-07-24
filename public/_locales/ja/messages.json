@@ -1,9 +1,9 @@
 {
   "extName": {
-    "message": "StegoShard：秘密を暗号化しQR・紙の画像でバックアップ"
+    "message": "StegoShard：秘密を暗号化し画像に保存・隠蔽"
   },
   "extDesc": {
-    "message": "ファイルを暗号化し、誤り訂正付きの堅牢な画像に変換。ディスク保存・印刷・クラウドに対応。"
+    "message": "秘密を画像に保存：誤り訂正付きの堅牢なバックアップ、否認可能なステガノグラフィ、またはその両方。"
   },
   "popupTagline": {
     "message": "ファイルを堅牢な画像に暗号化 — ディスク・紙・クラウド。"
@@ -724,7 +724,7 @@
     "description": "Wizard: stego key-mode description."
   },
   "destSqlite": {
-    "message": "偽のデータベース（.db）",
+    "message": "おとりデータベース（.db）",
     "description": "Destination: a binary vault disguised with a real SQLite header."
   },
   "destSqliteDesc": {
