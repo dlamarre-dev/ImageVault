@@ -33,7 +33,7 @@ tracked issues carry the detail. "Impact/Effort" are rough planning aids.
 ## Non-goals
 
 - Inventing cryptography (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
-- Overselling deniability. StegoShard's Plausible Storage is a real, first-class
+- Overselling deniability. StegoShard's Deniable Storage is a real, first-class
   model, but its deniability has honest, documented limits — notably no claim of
   steganographic indistinguishability against a dedicated forensic adversary, and a
   channel that is fragile by design (recompression destroys it). Those limits are

@@ -3,7 +3,7 @@
     "message": "StegoShard: cifre, faça backup e oculte segredos em imagens"
   },
   "extDesc": {
-    "message": "Guarde segredos em imagens: backup robusto com correção de erros, esteganografia com negação plausível, ou ambos."
+    "message": "Guarde segredos em imagens: backup resiliente com correção de erros, esteganografia com negação plausível, ou ambos."
   },
   "popupTagline": {
     "message": "Cifre um arquivo em imagens resilientes — disco, papel ou nuvem."
@@ -910,7 +910,7 @@
     "message": "Disfarça-se como ficheiros comuns — um conjunto de fotos ou uma base de dados de aparência real. Escolhe quando o objetivo é ocultar que existe um segredo."
   },
   "onboardingOvert": {
-    "message": "Abertamente StegoShard — imagens QR, um PDF imprimível ou um ficheiro simples. Escolhe para uma cópia de segurança simples e robusta."
+    "message": "Abertamente StegoShard — imagens QR, um PDF imprimível ou um ficheiro simples. Escolhe para uma cópia de segurança simples e resiliente."
   },
   "onboardingKeep": {
     "message": "Em qualquer caso, guarda a tua palavra-passe — não há recuperação se a perderes."

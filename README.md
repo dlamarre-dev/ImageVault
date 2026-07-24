@@ -1,62 +1,95 @@
 # StegoShard
 
-> **Store secrets in images — choose robustness, plausible deniability, or combine
+> **Store secrets in images — choose resilience, plausible deniability, or combine
 > both.** A cross-browser WebExtension (Chrome, Edge, Firefox) for **small,
 > high-value secrets**: password exports, keys, seed phrases, configs, `.env` files,
 > notes.
 
 StegoShard encrypts your file (zero-knowledge) and then gives you **two complementary
-storage models** — plus a bridge between them. **Robust Storage** keeps the secret
+storage models** — plus a bridge between them. **Resilient Storage** keeps the secret
 recoverable: openly artificial, error-corrected images that survive recompression and
-printing, or a single opaque binary file for larger secrets. **Plausible Storage** hides
+printing, or a single opaque binary file for larger secrets. **Deniable Storage** hides
 the secret so its very existence is deniable: fragmented inside ordinary-looking photos,
 or wrapped as a decoy database that reads as a mundane `.db`. **Hybrid** combines the two:
-store the archive robustly and hide only the recovery key in an everyday photo.
+store the archive resiliently and hide only the recovery key in an everyday photo.
+
+> **Meet Alice.** She wants to back up her password-manager export and keep it for
+> years — without a cloud company, or anyone glancing at her drive, knowing it exists.
+> She picks **Hybrid mode**:
+>
+> - the encrypted archive becomes **six resilient images**, which she **prints** and files away;
+> - the **recovery key** is hidden inside an ordinary **family photo** she leaves in Google Photos.
+>
+> Years later one printed page is lost and coffee has ruined another. It doesn't matter:
+> **five pages plus the vacation photo** are enough, and she restores everything
+> byte-for-byte. The photo looked like a photo the whole time.
 
 ```
 StegoShard offers two complementary storage models — plus a bridge between them.
 
-🛡  Robust Storage      error-corrected images, or one opaque file · survives cloud, print, copy
-🎭  Plausible Storage   inside ordinary photos, or a decoy database · deniable
-🔗  Hybrid              store the archive robustly, hide only the recovery key in a photo
+🛡  Resilient Storage   error-corrected images, or one opaque file · survives cloud, print, copy
+🎭  Deniable Storage    inside ordinary photos, or a decoy database · hides that data exists
+🔗  Hybrid              store the archive resiliently, hide only the recovery key in a photo
 ```
 
 ## Two storage models
 
+Start from the question that actually matters for your secret:
+
+```
+                          StegoShard
+
+                     Which property matters?
+
+          ┌────────────────────┴────────────────────┐
+          │                                          │
+  It must survive                            Nobody must know
+  everything                                 it even exists
+  (loss · print · cloud)                     (plausible deniability)
+          │                                          │
+          ▼                                          ▼
+  🛡 Resilient Storage                        🎭 Deniable Storage
+          │                                          │
+          └────────────────────┬────────────────────┘
+                               ▼
+                         🔗 Hybrid Mode
+             (resilient archive + deniable recovery key)
+```
+
 These are **not two points on a continuum — they are two incompatible guarantees**,
 and picking one is a deliberate trade-off:
 
-| Model                 | Primary goal                         | Survives recompression | Plausible deniability |
-| --------------------- | ------------------------------------ | :--------------------: | :-------------------: |
-| 🛡 **Robust Storage**  | Reliable backup                      | ✅ Yes                 | ❌ No                 |
-| 🎭 **Plausible Storage** | Hide that the data even exists     | ❌ No                  | ✅ Yes                |
+| Model                    | Primary goal                     | Survives recompression | Plausible deniability |
+| ------------------------ | -------------------------------- | :--------------------: | :-------------------: |
+| 🛡 **Resilient Storage** | Reliable backup                  | ✅ Yes                 | ❌ No                 |
+| 🎭 **Deniable Storage**  | Hide that the data even exists   | ❌ No                  | ✅ Yes                |
 
 The more you optimize to survive transformations, the more detectable the carrier
 becomes; the more you optimize for deniability, the more fragile the storage. This
 isn't a bug — the deniable channel is **fragile by nature**, and StegoShard makes the
 choice explicit instead of pretending one setting does both.
 
-**🔗 Hybrid** bridges them. Store the encrypted archive robustly (openly artificial
+**🔗 Hybrid** bridges them. Store the encrypted archive resiliently (openly artificial
 images), and hide **only the recovery key** in an ordinary photo:
 
 ```
 Archive (≤ 100 MB)
         │
         ▼
-StegoShard — Robust Storage
+StegoShard — Resilient Storage
         │
-        ├── robust images (visibly artificial, survive the cloud)
+        ├── resilient images (visibly artificial, survive the cloud)
         │
         └── recovery key
                  │
                  ▼
-         Ordinary photo — Plausible Storage
+         Ordinary photo — Deniable Storage
         (key hidden deniably, fragile by design)
 ```
 
 If that photo is copied to a social network, recompression destroys the hidden key —
-by design. The deniable channel is expendable; the robust archive stays intact. Small
-secrets (≈2 KB — seeds, keys, passwords) can live entirely in Plausible Storage on
+by design. The deniable channel is expendable; the resilient archive stays intact. Small
+secrets (≈2 KB — seeds, keys, passwords) can live entirely in Deniable Storage on
 their own.
 
 ### Output forms
@@ -67,14 +100,14 @@ like on disk:
 
 | Output form | Model | What it is |
 | ----------- | :---: | ---------- |
-| **QR-grid images** (disk / paper / cloud) | 🛡 Robust | Openly artificial images; survive recompression, printing, and cloud storage. |
-| **Opaque binary file** (`.ssbn`) | 🛡 Robust | One compact file for larger secrets (up to 100 MB, no image-count ceiling). Not deniable — clearly a StegoShard vault. |
-| **Decoy database** (`.db`) | 🎭 Plausible | The same binary bytes wrapped with a valid SQLite header, so file-type triage reads it as an ordinary database. Survives copying; deniability is shallow against a tool that actually opens it. |
-| **Ordinary photos** (stego key / Gallery Mode) | 🎭 Plausible | The secret (or just the key) hidden inside real-looking photos. Blends in completely, but **fragile** — recompression destroys it. |
+| **QR-grid images** (disk / paper / cloud) | 🛡 Resilient | Openly artificial images; survive recompression, printing, and cloud storage. |
+| **Opaque binary file** (`.ssbn`) | 🛡 Resilient | One compact file for larger secrets (up to 100 MB, no image-count ceiling). Not deniable — clearly a StegoShard vault. |
+| **Decoy database** (`.db`) | 🎭 Deniable | The same binary bytes wrapped with a valid SQLite header, so file-type triage reads it as an ordinary database. Survives copying; deniability is shallow against a tool that actually opens it. |
+| **Ordinary photos** (stego key / Gallery Mode) | 🎭 Deniable | The secret (or just the key) hidden inside real-looking photos. Blends in completely, but **fragile** — recompression destroys it. |
 
 The binary file and decoy database are peers of the image output, not afterthoughts:
-they are how you store a **larger** secret (up to 100 MB), robustly or deniably, when the
-image count would otherwise be impractical.
+they are how you store a **larger** secret (up to 100 MB), resiliently or deniably, when
+the image count would otherwise be impractical.
 
 ## Quickstart
 
@@ -105,7 +138,7 @@ npm run cli -- save secret.txt --out ./vault      # → PNG images
 npm run cli -- restore ./vault --out ./restored    # ← images / folder / .zip / .pdf
 ```
 
-See [Command-line tool](#command-line-tool) for key modes, paper, binary, and Gallery Mode.
+See the [command-line reference](docs/CLI.md) for key modes, paper, binary, and Gallery Mode.
 (A published `npm i -g stegoshard` and standalone binaries land with 1.0.)
 
 ## What it does
@@ -115,7 +148,7 @@ See [Command-line tool](#command-line-tool) for key modes, paper, binary, and Ga
 ```
 file → unlock (password → KEK → DEK) → compress → encrypt (AES-GCM)
      → erasure code (k data + m parity shards, Reed-Solomon)
-     → render each shard as a robust image (profile per destination)
+     → render each shard as a resilient image (profile per destination)
      → disk (PNG/ZIP) | paper (printable PDF) | cloud album (optional)
 ```
 
@@ -132,9 +165,9 @@ not stop restoration** as long as at least `k` images survive.
 
 ## Design principles
 
-- **Two incompatible guarantees, made explicit.** Robustness and deniability pull in
-  opposite directions (see [Two storage models](#two-storage-models)). Robust Storage
-  looks like coded noise, not vacation photos — deliberately; Plausible Storage blends
+- **Two incompatible guarantees, made explicit.** Resilience and deniability pull in
+  opposite directions (see [Two storage models](#two-storage-models)). Resilient Storage
+  looks like coded noise, not vacation photos — deliberately; Deniable Storage blends
   in but is fragile by nature. StegoShard makes you choose rather than pretending one
   setting does both, and documents the honest limits of each.
 - **Small secrets.** ~4× size overhead; large binaries are out of scope.
@@ -158,22 +191,22 @@ an external review, not features.
   documented for auditors in a [cryptographic review dossier](docs/CRYPTO-REVIEW.md)
   (claims → where enforced → which test proves it), with frozen cross-implementation
   test vectors and exhaustive negative/fuzz testing.
-- **Destinations** _(🛡 Robust Storage)_ — **Disk** (a set of PNG images, or a single
+- **Destinations** _(🛡 Resilient Storage)_ — **Disk** (a set of PNG images, or a single
   `.zip`), **Paper** (a printable PDF, one high-ECC QR per page, readable header +
   optional instruction sheet, restores from scans or photos), and an **optional Google
   Photos** album (upload + restore via the Picker API); the cloud is a convenience,
   never the only copy.
 - **Key modes** — **embedded** (key block travels in the images), **keyfile** (a separate
-  `.key` file), and **deniable stego** _(🎭/🔗 — the Plausible & Hybrid building block)_:
+  `.key` file), and **deniable stego** _(🎭/🔗 — the Deniable & Hybrid building block)_:
   the key hidden in an ordinary photo — a baseline JPEG cover stays a same-size JPEG via
-  DCT-coefficient embedding, a PNG cover stays a PNG. Combined with a robust destination
+  DCT-coefficient embedding, a PNG cover stays a PNG. Combined with a resilient destination
   this **is** Hybrid mode. Plus a **managed vault key** in the options page (create /
   unlock per session / change password / export / import / erase); the unlocked session
   is volatile and persists across popup reopens until the browser closes.
 - **Non-image output** — a **binary container** for larger secrets (up to 100 MB, no
-  image-count ceiling): a compact opaque `.ssbn` file _(🛡 Robust)_, or the same bytes
+  image-count ceiling): a compact opaque `.ssbn` file _(🛡 Resilient)_, or the same bytes
   wrapped as a **decoy database** with a valid SQLite header so file-type triage reads it
-  as an ordinary `.db` _(🎭 Plausible)_ (SPEC §8). Plus **Gallery Mode** _(🎭 Plausible)_
+  as an ordinary `.db` _(🎭 Deniable)_ (SPEC §8). Plus **Gallery Mode** _(🎭 Deniable)_
   (SPEC §9), which fragments a small secret across a folder of ordinary photos plus
   decoys, Reed-Solomon-protected and decoded blindly.
 - **Independent recovery** — a standalone **[Python reference decoder](python/README.md)**
@@ -210,71 +243,18 @@ install and nothing leaving your device), built with `npm run build:web` / `npm 
 dev:web` and deployed to GitHub Pages. It doubles as an extension-independent recovery
 tool.
 
-## Command-line tool
+## Documentation
 
-A headless **CLI** runs the exact same `@core` format as the extension and web app, so
-vaults are interchangeable across all of them (and the Python decoder). It can both
-**create** and **restore** vaults — unlike the decode-only Python reference decoder.
-
-```bash
-npm run cli -- save secret.txt --out ./vault           # → PNG images
-npm run cli -- restore ./vault --out ./restored        # ← images / folder / .zip / .pdf
-npm run cli -- estimate secret.txt                     # how many images it will take
-```
-
-Key modes and paper output mirror the apps:
-
-```bash
-# Hybrid mode (🔗): the archive is stored robustly as images, and only the
-# recovery key is hidden deniably inside an ordinary photo. A baseline JPEG
-# cover stays a JPEG of the same size, metadata, and filename (the key rides in
-# its DCT coefficients); a PNG cover stays a PNG. The key image is named after
-# the cover, so restore points --key at that file. If the cover photo is later
-# recompressed, only the key is lost — the robust archive survives.
-npm run cli -- save wallet.dat --key-mode stego --cover cat.jpg --out ./vault
-npm run cli -- restore ./vault --key ./vault/cat.jpg --out ./restored
-
-# Printable PDF with a localized instruction sheet.
-npm run cli -- save notes.txt --paper --instructions --locale fr --out ./print
-
-# Binary (non-image) output: one opaque file instead of QR images, for larger
-# secrets (up to 100 MB, no image-count ceiling). --disguise wraps it as a decoy
-# database with a valid SQLite header so file-type triage reads it as an ordinary
-# .db (SPEC §8).
-npm run cli -- save archive.zip --binary --disguise --out ./vault
-npm run cli -- restore ./vault/cache.db --out ./restored
-
-# Gallery Mode (SPEC §9): hide a small secret fragmented across a folder of
-# ordinary photos (plus decoys), Reed-Solomon-protected. The output photos look
-# unchanged; restore is blind — any photos that authenticate are used, and any K
-# fragments rebuild the secret. Needs 5+ photos (at least 2 become decoys).
-npm run cli -- gallery-save note.txt ./photos --out ./album
-npm run cli -- gallery-restore ./album --out ./restored
-```
-
-Images and PDF are capped at 1 MB (a warning shows the resulting image count
-past 256 KB); the binary output raises that to 100 MB.
-
-The password is taken (in order) from `--password` (which prints a warning — it is
-visible in your shell history and the process list), `--password-file`, the
-`STEGOSHARD_PASSWORD` environment variable, or an interactive hidden prompt.
-
-**Packaging.** Two ways to install, depending on whether you already have Node:
-
-- **npm (small, recommended).** `npm i -g stegoshard` (or `npx stegoshard …`) pulls the
-  minified `dist-cli/stegoshard.js` bundle plus its pure-JS/WASM deps — a few MB. Needs
-  Node ≥ 20. `npm run build:cli` produces that self-contained, shebang-included bundle.
-- **Standalone binary (larger, zero-dependency).** From the same bundle, `deno compile`
-  produces per-OS executables (see the `Release CLI binaries` workflow). These embed the
-  Deno/V8 runtime, so they are tens of MB even though the app code is tiny; the Linux and
-  Windows binaries are UPX-compressed (~25-35 MB), the macOS one is shipped uncompressed
-  (UPX breaks its Gatekeeper signature). They resolve nothing at run time and have baked-in
-  `--allow-read --allow-write` permissions with **no network access**, so "nothing leaves
-  your device" is enforced by the runtime.
-
-Paper mode renders Latin instruction text with pdf-lib's built-in Helvetica;
-CJK (`ja`/`zh`) uses a `--font <.ttf/.otf>` or a system font, falling back to English if
-none is found — nothing is ever downloaded.
+| Doc | What's in it |
+| --- | ------------ |
+| [Why StegoShard?](docs/WHY.md) | The problem, and the reasoning behind the two-model design. |
+| [Command-line reference](docs/CLI.md) | Full CLI: save/restore, key modes, paper, binary, Gallery Mode, packaging. |
+| [Threat model](docs/THREAT-MODEL.md) | Adversaries, what each model defends against, and the deliberate non-goals. |
+| [Format specification](SPEC.md) | The frozen on-disk / on-image format (`FORMAT_VERSION = 1`). |
+| [Cryptographic review dossier](docs/CRYPTO-REVIEW.md) | Claims → where enforced → which test proves it, for auditors. |
+| [Roadmap](docs/ROADMAP.md) · [Privacy](docs/PRIVACY.md) · [Terms](docs/TERMS.md) | Direction, privacy policy, terms of use. |
+| [Localization](docs/LOCALIZATION.md) · [Store guide](docs/STORE.md) · [Versioning](docs/VERSIONING.md) | Translation setup, store submission, format-version policy. |
+| [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) | How to contribute; how to report vulnerabilities. |
 
 ## Contributing & security
 

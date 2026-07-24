@@ -3,10 +3,10 @@
     "message": "StegoShard：將機密加密、備份並隱藏於圖像"
   },
   "extDesc": {
-    "message": "把機密存於圖像：具錯誤更正的穩健備份、可否認的隱寫術，或兩者兼具。"
+    "message": "把機密存於圖像：具錯誤更正、具韌性的備份、可否認的隱寫術，或兩者兼具。"
   },
   "popupTagline": {
-    "message": "把檔案加密成穩健圖像 — 磁碟、紙本或雲端。"
+    "message": "把檔案加密成具韌性的圖像 — 磁碟、紙本或雲端。"
   },
   "optionsTitle": {
     "message": "StegoShard 設定"
@@ -910,7 +910,7 @@
     "message": "偽裝成一般檔案——一組相片，或看似真實的資料庫。當目標是隱藏「機密存在」本身時選用。"
   },
   "onboardingOvert": {
-    "message": "明確為 StegoShard——QR 影像、可列印 PDF 或純檔案。想要簡單、穩健的備份時選用。"
+    "message": "明確為 StegoShard——QR 影像、可列印 PDF 或純檔案。想要簡單、具韌性的備份時選用。"
   },
   "onboardingKeep": {
     "message": "無論如何，請保管好你的密碼——遺失將無法還原。"

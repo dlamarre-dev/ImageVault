@@ -2,7 +2,7 @@
   "name": "stegoshard",
   "version": "0.9.0",
   "private": true,
-  "description": "Store secrets in images, an opaque file, or a decoy database: robust error-corrected storage that survives disk, paper, and the cloud, plausible-deniability steganography, or both.",
+  "description": "Store secrets in images, an opaque file, or a decoy database: resilient error-corrected storage that survives disk, paper, and the cloud, plausible-deniability steganography, or both.",
   "license": "MIT",
   "type": "module",
   "bin": {
