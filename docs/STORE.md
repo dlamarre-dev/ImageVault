@@ -127,7 +127,8 @@ extension (and the web app) are fully usable without Google Photos.
 ## Before 1.0
 
 - Native proofread of the `ja` and `zh_TW` locales (see LOCALIZATION.md), and of
-  the repositioned store strings (`extName`, `extDesc`, `destSqlite`) across all
-  eight locales — the two-storage-models wording was drafted, not natively reviewed.
+  the repositioned strings (`extName`, `extDesc`, `destSqlite`, `popupTagline`,
+  `onboardingOvert` — incl. the "robust" → "resilient" rewording) across all eight
+  locales — the two-storage-models wording was drafted, not natively reviewed.
 - Consider an external review of the cryptographic core.
 - Generate localized store screenshots (pipeline still manual).

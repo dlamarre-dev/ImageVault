@@ -4,7 +4,7 @@
     "description": "Extension name (max 75 chars), keyword-oriented (plan §7)."
   },
   "extDesc": {
-    "message": "Stockez vos secrets en images : sauvegarde robuste corrigée d'erreurs, stéganographie à déni plausible, ou les deux.",
+    "message": "Stockez vos secrets en images : sauvegarde résiliente corrigée d'erreurs, stéganographie à déni plausible, ou les deux.",
     "description": "Store listing description (max 132 chars)."
   },
   "popupTagline": {
@@ -1006,7 +1006,7 @@
     "message": "Se fond dans des fichiers ordinaires — un ensemble de photos ou une base de données d’apparence réelle. À choisir quand le but est de cacher l’existence même d’un secret."
   },
   "onboardingOvert": {
-    "message": "Ouvertement StegoShard — images QR, PDF imprimable ou fichier simple. À choisir pour une sauvegarde simple et robuste."
+    "message": "Ouvertement StegoShard — images QR, PDF imprimable ou fichier simple. À choisir pour une sauvegarde simple et résiliente."
   },
   "onboardingKeep": {
     "message": "Dans tous les cas, conserve ton mot de passe — aucune récupération possible si tu le perds."

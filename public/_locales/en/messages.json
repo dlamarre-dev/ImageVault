@@ -4,7 +4,7 @@
     "description": "Extension name (max 75 chars), keyword-oriented (plan §7)."
   },
   "extDesc": {
-    "message": "Store secrets in images: robust error-corrected backup, plausible-deniability steganography, or both.",
+    "message": "Store secrets in images: resilient error-corrected backup, plausible-deniability steganography, or both.",
     "description": "Store listing description (max 132 chars)."
   },
   "popupTagline": {
@@ -1006,7 +1006,7 @@
     "message": "Blends in as ordinary files — a set of photos, or a real-looking database. Pick this when the goal is to hide that a secret exists at all."
   },
   "onboardingOvert": {
-    "message": "Openly StegoShard — QR images, a printable PDF, or a plain file. Pick this for a straightforward, robust backup."
+    "message": "Openly StegoShard — QR images, a printable PDF, or a plain file. Pick this for a straightforward, resilient backup."
   },
   "onboardingKeep": {
     "message": "Either way, keep your password — there is no recovery if you lose it."

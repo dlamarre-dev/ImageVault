@@ -3,7 +3,7 @@
     "message": "StegoShard: Geheimnisse in Bildern verschlüsseln, sichern & verbergen"
   },
   "extDesc": {
-    "message": "Geheimnisse in Bildern speichern: robustes, fehlerkorrigiertes Backup, glaubhaft abstreitbare Steganografie – oder beides."
+    "message": "Geheimnisse in Bildern speichern: resilientes, fehlerkorrigiertes Backup, glaubhaft abstreitbare Steganografie – oder beides."
   },
   "popupTagline": {
     "message": "Verschlüssle eine Datei in widerstandsfähige Bilder — Festplatte, Papier oder Cloud."
@@ -910,7 +910,7 @@
     "message": "Tarnt sich als gewöhnliche Dateien — ein Fotosatz oder eine echt wirkende Datenbank. Wähle dies, wenn das Ziel ist, die Existenz eines Geheimnisses zu verbergen."
   },
   "onboardingOvert": {
-    "message": "Offen StegoShard — QR-Bilder, ein druckbares PDF oder eine einfache Datei. Wähle dies für ein unkompliziertes, robustes Backup."
+    "message": "Offen StegoShard — QR-Bilder, ein druckbares PDF oder eine einfache Datei. Wähle dies für ein unkompliziertes, resilientes Backup."
   },
   "onboardingKeep": {
     "message": "In jedem Fall: Bewahre dein Passwort auf — ohne es gibt es keine Wiederherstellung."
